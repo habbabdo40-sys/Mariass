@@ -3,6 +3,7 @@ import '../widgets/playing_card_widget.dart';
 import '../widgets/player_hand_fan.dart';
 import '../widgets/opponent_seat.dart';
 import '../widgets/auction_panel.dart';
+import '../widgets/round_result_card.dart';
 import '../game_engine/trick_logic.dart';
 import '../game_engine/deck.dart';
 
@@ -18,6 +19,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
   int currentLevel = 0;
   bool quensAvailable = false;
   bool roundOver = false;
+  bool isCapot = false;
+  bool isSuccess = false;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
   int myPoints = 0;
@@ -88,16 +91,12 @@ class _GameTableScreenState extends State<GameTableScreen> {
       trick = [];
       if (hand.isEmpty) {
         roundOver = true;
-        final isCapot = myTricksWon == 8;
+        isCapot = myTricksWon == 8;
         final total = trumpSuit != null ? 162 : 260;
-        final capotBonus = trumpSuit != null ? 250 : 350;
-        if (isCapot) {
-          statusText = '🎉 كبّوت! أخذت كل الدورات - نقاطك: $capotBonus';
-        } else {
-          final threshold = total ~/ 2;
-          final success = myPoints >= threshold;
-          statusText = success ? 'نجحت! نقاطك: $myPoints من $total ✅' : 'فشلت. نقاطك: $myPoints من $total ❌';
-        }
+        final threshold = total ~/ 2;
+        isSuccess = isCapot || myPoints >= threshold;
+        if (isCapot) myPoints = trumpSuit != null ? 250 : 350;
+        statusText = '';
       } else {
         statusText = 'دورك للعب - نقاطك حتى الآن: $myPoints';
       }
@@ -111,6 +110,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
       currentLevel = 0;
       quensAvailable = false;
       roundOver = false;
+      isCapot = false;
+      isSuccess = false;
       trick = [];
       myPoints = 0;
       tricksPlayed = 0;
@@ -124,6 +125,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   @override
   Widget build(BuildContext context) {
     final remaining = 8 - tricksPlayed;
+    final total = trumpSuit != null ? 162 : 260;
     return Scaffold(
       body: SizedBox(
         width: double.infinity,
@@ -138,10 +140,14 @@ class _GameTableScreenState extends State<GameTableScreen> {
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Padding(padding: const EdgeInsets.only(right: 4), child: OpponentSeat(name: 'اللاعب 3', cardsCount: remaining)),
                   Column(mainAxisSize: MainAxisSize.min, children: [
-                    if (trick.isNotEmpty)
-                      Wrap(spacing: 4, children: trick.map((c) => PlayingCardWidget(rank: c.rank, suitSymbol: c.suitSymbol, isRed: c.isRed, width: 42)).toList()),
-                    const SizedBox(height: 8),
-                    Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
+                    if (roundOver)
+                      RoundResultCard(isCapot: isCapot, isSuccess: isSuccess, points: myPoints, total: total)
+                    else ...[
+                      if (trick.isNotEmpty)
+                        Wrap(spacing: 4, children: trick.map((c) => PlayingCardWidget(rank: c.rank, suitSymbol: c.suitSymbol, isRed: c.isRed, width: 42)).toList()),
+                      const SizedBox(height: 8),
+                      Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
+                    ],
                     if (trick.length >= 4 && !roundOver) ...[
                       const SizedBox(height: 8),
                       ElevatedButton(onPressed: nextTrick, child: const Text('الدورة التالية')),
