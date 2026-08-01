@@ -26,7 +26,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   List<HandCard> trick = [];
   int myPoints = 0;
   int matchTotal = 0;
-  static const int targetScore = 501;
+  static const int targetScore = 1000;
   int tricksPlayed = 0;
   int myTricksWon = 0;
   String? trumpSuit;
