@@ -46,11 +46,15 @@ class _GameTableScreenState extends State<GameTableScreen> {
           color: const Color(0xFF0B3D0B),
           child: SafeArea(
             child: Column(children: [
-              const Padding(padding: EdgeInsets.all(12), child: Text('Mariass', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold))),
+              const Padding(padding: EdgeInsets.all(12), child: Text('Mariass', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold))),
               const OpponentSeat(name: 'اللاعب 2'),
-              const Spacer(),
-              Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              const Spacer(),
+              Expanded(
+                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  const Padding(padding: EdgeInsets.only(right: 4), child: OpponentSeat(name: 'اللاعب 3')),
+                  Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  const Padding(padding: EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4')),
+                ]),
+              ),
               Center(child: PlayerHandFan(cards: hand)),
               const SizedBox(height: 10),
               if (showAuction) AuctionPanel(isFirstBidder: isFirstBidder, currentHighestLevel: currentLevel, isQuensAvailable: quensAvailable, onDecision: handleDecision),
