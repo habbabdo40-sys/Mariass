@@ -20,7 +20,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   bool roundOver = false;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
-  int tricksWon = 0;
+  int myPoints = 0;
   int tricksPlayed = 0;
 
   late List<List<HandCard>> allHands;
@@ -61,20 +61,24 @@ class _GameTableScreenState extends State<GameTableScreen> {
       final bots = [allHands[1][tricksPlayed], allHands[2][tricksPlayed], allHands[3][tricksPlayed]];
       trick = [card, ...bots];
       final winner = determineTrickWinner(trick);
-      statusText = 'الفائز بالدورة: ${winner.rank} ${winner.suitSymbol}';
+      final points = trickPoints(trick);
+      statusText = 'الفائز: ${winner.rank} ${winner.suitSymbol} (+$points نقطة)';
     });
   }
 
   void nextTrick() {
     setState(() {
-      tricksWon += 1;
+      final points = trickPoints(trick);
+      final winner = determineTrickWinner(trick);
+      if (winner == trick[0]) myPoints += points;
       tricksPlayed += 1;
       trick = [];
       if (hand.isEmpty) {
         roundOver = true;
-        statusText = 'انتهت الجولة! إجمالي أخذاتك: $tricksWon من 8';
+        final success = myPoints >= 130;
+        statusText = success ? 'نجحت! نقاطك: $myPoints من 260 ✅' : 'فشلت. نقاطك: $myPoints من 260 ❌';
       } else {
-        statusText = 'دورك للعب - أخذاتك حتى الآن: $tricksWon';
+        statusText = 'دورك للعب - نقاطك حتى الآن: $myPoints';
       }
     });
   }
@@ -87,7 +91,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       quensAvailable = false;
       roundOver = false;
       trick = [];
-      tricksWon = 0;
+      myPoints = 0;
       tricksPlayed = 0;
       statusText = 'دورك: اختر نوع اللعب';
       _dealNewHands();
@@ -104,7 +108,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
           color: const Color(0xFF0B3D0B),
           child: SafeArea(
             child: Column(children: [
-              Padding(padding: const EdgeInsets.all(12), child: Text('Mariass - أخذات: $tricksWon', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
+              Padding(padding: const EdgeInsets.all(12), child: Text('Mariass - نقاط: $myPoints', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
               const OpponentSeat(name: 'اللاعب 2'),
               Expanded(
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
