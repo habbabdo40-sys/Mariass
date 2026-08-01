@@ -22,6 +22,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   List<HandCard> trick = [];
   int myPoints = 0;
   int tricksPlayed = 0;
+  int myTricksWon = 0;
   String? trumpSuit;
 
   static const Map<String, String> codeToSuit = {'TREFF': '♣', 'CARRO': '♦', 'COEUR': '♥', 'PICK': '♠'};
@@ -78,15 +79,25 @@ class _GameTableScreenState extends State<GameTableScreen> {
     setState(() {
       final points = trickPoints(trick, trumpSuit);
       final winner = determineTrickWinner(trick, trumpSuit);
-      if (winner == trick[0]) myPoints += points;
+      final iWon = winner == trick[0];
+      if (iWon) {
+        myPoints += points;
+        myTricksWon += 1;
+      }
       tricksPlayed += 1;
       trick = [];
       if (hand.isEmpty) {
         roundOver = true;
+        final isCapot = myTricksWon == 8;
         final total = trumpSuit != null ? 162 : 260;
-        final threshold = total ~/ 2;
-        final success = myPoints >= threshold;
-        statusText = success ? 'نجحت! نقاطك: $myPoints من $total ✅' : 'فشلت. نقاطك: $myPoints من $total ❌';
+        final capotBonus = trumpSuit != null ? 250 : 350;
+        if (isCapot) {
+          statusText = '🎉 كبّوت! أخذت كل الدورات - نقاطك: $capotBonus';
+        } else {
+          final threshold = total ~/ 2;
+          final success = myPoints >= threshold;
+          statusText = success ? 'نجحت! نقاطك: $myPoints من $total ✅' : 'فشلت. نقاطك: $myPoints من $total ❌';
+        }
       } else {
         statusText = 'دورك للعب - نقاطك حتى الآن: $myPoints';
       }
@@ -103,6 +114,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       trick = [];
       myPoints = 0;
       tricksPlayed = 0;
+      myTricksWon = 0;
       trumpSuit = null;
       statusText = 'دورك: اختر نوع اللعب';
       _dealNewHands();
