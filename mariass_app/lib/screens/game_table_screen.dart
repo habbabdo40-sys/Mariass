@@ -22,6 +22,9 @@ class _GameTableScreenState extends State<GameTableScreen> {
   bool isCapot = false;
   bool isSuccess = false;
   bool matchWon = false;
+      matchLost = false;
+      opponentTotal = 0;
+  bool matchLost = false;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
   int myPoints = 0;
@@ -102,6 +105,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
         if (isCapot) myPoints = trumpSuit != null ? 250 : 350;
         if (isSuccess) { matchTotal += myPoints; } else { opponentTotal += (trumpSuit != null ? 162 : 260); }
         if (matchTotal >= targetScore) matchWon = true;
+        if (opponentTotal >= targetScore) matchLost = true;
         statusText = '';
       } else {
         statusText = 'دورك للعب - نقاطك حتى الآن: $myPoints';
@@ -132,6 +136,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
     setState(() {
       matchTotal = 0;
       matchWon = false;
+      matchLost = false;
+      opponentTotal = 0;
       startNewRound();
     });
   }
@@ -154,7 +160,13 @@ class _GameTableScreenState extends State<GameTableScreen> {
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Padding(padding: const EdgeInsets.only(right: 4), child: OpponentSeat(name: 'اللاعب 3', cardsCount: remaining)),
                   Column(mainAxisSize: MainAxisSize.min, children: [
-                    if (matchWon)
+                    if (matchLost)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: Colors.red.shade900, borderRadius: BorderRadius.circular(16)),
+                        child: const Text('😞 خسرت المباراة', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                      )
+                    else if (matchWon || matchLost)
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(color: Colors.amber.shade800, borderRadius: BorderRadius.circular(16)),
@@ -172,7 +184,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton(onPressed: nextTrick, child: const Text('الدورة التالية')),
                     ],
-                    if (roundOver && !matchWon) ...[
+                    if (roundOver && !matchWon && !matchLost) ...[
                       const SizedBox(height: 16),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade800),
@@ -180,7 +192,13 @@ class _GameTableScreenState extends State<GameTableScreen> {
                         child: const Text('جولة جديدة', style: TextStyle(color: Colors.white)),
                       ),
                     ],
-                    if (matchWon) ...[
+                    if (matchLost)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: Colors.red.shade900, borderRadius: BorderRadius.circular(16)),
+                        child: const Text('😞 خسرت المباراة', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                      )
+                    else if (matchWon || matchLost) ...[
                       const SizedBox(height: 16),
                       ElevatedButton(onPressed: startNewMatch, child: const Text('مباراة جديدة')),
                     ],
