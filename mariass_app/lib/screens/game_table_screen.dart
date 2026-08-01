@@ -6,8 +6,10 @@ import '../widgets/opponent_seat.dart';
 import '../widgets/auction_panel.dart';
 import '../widgets/round_result_card.dart';
 import '../widgets/auction_summary_bar.dart';
+import '../widgets/amji_picker_dialog.dart';
 import '../game_engine/trick_logic.dart';
 import '../game_engine/deck.dart';
+import '../game_engine/trick_record.dart';
 
 class GameTableScreen extends StatefulWidget {
   const GameTableScreen({super.key});
@@ -29,7 +31,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
   String? bidLabel;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
-  List<HandCard> bot1HandBeforePlay = [];
+  List<PlayedCard> currentTrickPlays = [];
+  List<TrickRecord> completedTricks = [];
   int myPoints = 0;
   int matchTotal = 0;
   int opponentTotal = 0;
@@ -40,6 +43,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   String? amjiResult;
 
   static const Map<String, String> codeToSuit = {'TREFF': '♣', 'CARRO': '♦', 'COEUR': '♥', 'PICK': '♠'};
+  static const List<String> playerNames = ['أنت', 'اللاعب 2', 'اللاعب 3', 'اللاعب 4'];
 
   late List<List<HandCard>> allHands;
   late List<HandCard> hand;
@@ -84,12 +88,22 @@ class _GameTableScreenState extends State<GameTableScreen> {
     }
     setState(() {
       amjiResult = null;
+      final handBefore = List<HandCard>.from(hand);
       hand = hand.where((c) => c != card).toList();
-      bot1HandBeforePlay = List.from(allHands[1].sublist(tricksPlayed));
+      currentTrickPlays = [PlayedCard(card: card, playerName: playerNames[0], handBeforePlay: handBefore, trickBeforePlay: [])];
+
       final rand = Random();
-      final legalBot1 = allHands[1][tricksPlayed];
-      final bot1Card = rand.nextDouble() < 0.3 && bot1HandBeforePlay.length > 1 ? bot1HandBeforePlay[1] : legalBot1;
-      final bots = [bot1Card, allHands[2][tricksPlayed], allHands[3][tricksPlayed]];
+      final botHandsBefore = [allHands[1].sublist(tricksPlayed), allHands[2].sublist(tricksPlayed), allHands[3].sublist(tricksPlayed)];
+      final legalBots = [allHands[1][tricksPlayed], allHands[2][tricksPlayed], allHands[3][tricksPlayed]];
+      final bot1Card = rand.nextDouble() < 0.3 && botHandsBefore[0].length > 1 ? botHandsBefore[0][1] : legalBots[0];
+
+      final playedSoFar = <HandCard>[card];
+      final bots = [bot1Card, legalBots[1], legalBots[2]];
+      for (int i = 0; i < bots.length; i++) {
+        currentTrickPlays.add(PlayedCard(card: bots[i], playerName: playerNames[i + 1], handBeforePlay: botHandsBefore[i], trickBeforePlay: List.from(playedSoFar)));
+        playedSoFar.add(bots[i]);
+      }
+
       trick = [card, ...bots];
       final winner = determineTrickWinner(trick, trumpSuit);
       final points = trickPoints(trick, trumpSuit);
@@ -97,15 +111,21 @@ class _GameTableScreenState extends State<GameTableScreen> {
     });
   }
 
-  void callAmji() {
-    setState(() {
-      if (trick.length < 2) {
-        amjiResult = 'لا توجد رمية بوت لفحصها بعد';
-        return;
-      }
-      final violation = checkAmjiViolation(bot1HandBeforePlay, trick[1], [trick[0]]);
-      amjiResult = violation ? '✅ أمجي صحيح! مخالفة مؤكدة من اللاعب 2' : '❌ لا توجد مخالفة - بلاغ خاطئ';
-    });
+  void openAmjiPicker() {
+    showDialog(
+      context: context,
+      builder: (context) => AmjiPickerDialog(
+        completedTricks: completedTricks,
+        currentTrick: currentTrickPlays.isNotEmpty ? TrickRecord(currentTrickPlays) : null,
+        onPick: (picked) {
+          Navigator.pop(context);
+          final violation = checkAmjiViolation(picked.handBeforePlay, picked.card, picked.trickBeforePlay);
+          setState(() {
+            amjiResult = violation ? '✅ أمجي صحيح! ${picked.playerName} خالف القاعدة' : '❌ خطأ! ${picked.playerName} لم يخالف - انقلب عليك الأمجي';
+          });
+        },
+      ),
+    );
   }
 
   void nextTrick() {
@@ -117,6 +137,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
         myPoints += points;
         myTricksWon += 1;
       }
+      completedTricks.add(TrickRecord(List.from(currentTrickPlays)));
+      currentTrickPlays = [];
       tricksPlayed += 1;
       trick = [];
       amjiResult = null;
@@ -153,6 +175,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
       isQuensChosen = false;
       bidLabel = null;
       trick = [];
+      currentTrickPlays = [];
+      completedTricks = [];
       amjiResult = null;
       myPoints = 0;
       tricksPlayed = 0;
@@ -217,8 +241,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
                 const SizedBox(height: 10),
                 if (showAuction) AuctionPanel(isFirstBidder: isFirstBidder, currentHighestLevel: currentLevel, isQuensAvailable: quensAvailable, onDecision: handleDecision),
               ]),
-              if (trick.length >= 2 && !showAuction && !roundOver)
-                Positioned(bottom: 170, right: 16, child: FloatingActionButton.extended(backgroundColor: Colors.red.shade700, onPressed: callAmji, icon: const Icon(Icons.flag), label: const Text('Amji'))),
+              if (!showAuction && !roundOver && (completedTricks.isNotEmpty || currentTrickPlays.isNotEmpty))
+                Positioned(bottom: 170, right: 16, child: FloatingActionButton.extended(backgroundColor: Colors.red.shade700, onPressed: openAmjiPicker, icon: const Icon(Icons.flag), label: const Text('Amji'))),
             ]),
           ),
         ),
