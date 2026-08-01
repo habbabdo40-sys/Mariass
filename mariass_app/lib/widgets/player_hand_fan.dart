@@ -10,7 +10,8 @@ class HandCard {
 
 class PlayerHandFan extends StatelessWidget {
   final List<HandCard> cards;
-  const PlayerHandFan({super.key, required this.cards});
+  final void Function(HandCard card)? onCardTap;
+  const PlayerHandFan({super.key, required this.cards, this.onCardTap});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +24,10 @@ class PlayerHandFan extends StatelessWidget {
         return Positioned(
           left: i * 34.0,
           bottom: angle.abs() * 40,
-          child: Transform.rotate(angle: angle, child: PlayingCardWidget(rank: cards[i].rank, suitSymbol: cards[i].suitSymbol, isRed: cards[i].isRed, width: 62)),
+          child: GestureDetector(
+            onTap: () => onCardTap?.call(cards[i]),
+            child: Transform.rotate(angle: angle, child: PlayingCardWidget(rank: cards[i].rank, suitSymbol: cards[i].suitSymbol, isRed: cards[i].isRed, width: 62)),
+          ),
         );
       })),
     );

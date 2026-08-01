@@ -38,6 +38,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   }
 
   void playCard(HandCard card) {
+    if (showAuction) return;
     setState(() {
       playedCard = card;
       hand = hand.where((c) => c != card).toList();
@@ -68,12 +69,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
                   const Padding(padding: EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4')),
                 ]),
               ),
-              GestureDetector(
-                onTapUp: (details) {
-                  if (!showAuction && hand.isNotEmpty) playCard(hand.first);
-                },
-                child: Center(child: PlayerHandFan(cards: hand)),
-              ),
+              Center(child: PlayerHandFan(cards: hand, onCardTap: playCard)),
               const SizedBox(height: 10),
               if (showAuction) AuctionPanel(isFirstBidder: isFirstBidder, currentHighestLevel: currentLevel, isQuensAvailable: quensAvailable, onDecision: handleDecision),
             ]),
