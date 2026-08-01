@@ -22,6 +22,9 @@ class _GameTableScreenState extends State<GameTableScreen> {
   List<HandCard> trick = [];
   int myPoints = 0;
   int tricksPlayed = 0;
+  String? trumpSuit;
+
+  static const Map<String, String> codeToSuit = {'TREFF': '♣', 'CARRO': '♦', 'COEUR': '♥', 'PICK': '♠'};
 
   late List<List<HandCard>> allHands;
   late List<HandCard> hand;
@@ -47,6 +50,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
           currentLevel = bidLadder.firstWhere((b) => b['code'] == code)['level'] as int;
           isFirstBidder = false;
           quensAvailable = true;
+          trumpSuit = codeToSuit[code];
         }
         statusText = 'الحاكم: ${bid['label']} - دورك للعب';
         showAuction = false;
@@ -64,23 +68,25 @@ class _GameTableScreenState extends State<GameTableScreen> {
       hand = hand.where((c) => c != card).toList();
       final bots = [allHands[1][tricksPlayed], allHands[2][tricksPlayed], allHands[3][tricksPlayed]];
       trick = [card, ...bots];
-      final winner = determineTrickWinner(trick);
-      final points = trickPoints(trick);
+      final winner = determineTrickWinner(trick, trumpSuit);
+      final points = trickPoints(trick, trumpSuit);
       statusText = 'الفائز: ${winner.rank} ${winner.suitSymbol} (+$points نقطة)';
     });
   }
 
   void nextTrick() {
     setState(() {
-      final points = trickPoints(trick);
-      final winner = determineTrickWinner(trick);
+      final points = trickPoints(trick, trumpSuit);
+      final winner = determineTrickWinner(trick, trumpSuit);
       if (winner == trick[0]) myPoints += points;
       tricksPlayed += 1;
       trick = [];
       if (hand.isEmpty) {
         roundOver = true;
-        final success = myPoints >= 130;
-        statusText = success ? 'نجحت! نقاطك: $myPoints من 260 ✅' : 'فشلت. نقاطك: $myPoints من 260 ❌';
+        final total = trumpSuit != null ? 162 : 260;
+        final threshold = total ~/ 2;
+        final success = myPoints >= threshold;
+        statusText = success ? 'نجحت! نقاطك: $myPoints من $total ✅' : 'فشلت. نقاطك: $myPoints من $total ❌';
       } else {
         statusText = 'دورك للعب - نقاطك حتى الآن: $myPoints';
       }
@@ -97,6 +103,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       trick = [];
       myPoints = 0;
       tricksPlayed = 0;
+      trumpSuit = null;
       statusText = 'دورك: اختر نوع اللعب';
       _dealNewHands();
     });
@@ -112,7 +119,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
           color: const Color(0xFF0B3D0B),
           child: SafeArea(
             child: Column(children: [
-              Padding(padding: const EdgeInsets.all(12), child: Text('Mariass - نقاط: $myPoints', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
+              Padding(padding: const EdgeInsets.all(12), child: Text('Mariass - نقاط: $myPoints${trumpSuit != null ? " | الحكم: $trumpSuit" : ""}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
               const OpponentSeat(name: 'اللاعب 2'),
               Expanded(
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
