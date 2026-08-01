@@ -111,6 +111,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final remaining = 8 - tricksPlayed;
     return Scaffold(
       body: SizedBox(
         width: double.infinity,
@@ -120,10 +121,10 @@ class _GameTableScreenState extends State<GameTableScreen> {
           child: SafeArea(
             child: Column(children: [
               Padding(padding: const EdgeInsets.all(12), child: Text('Mariass - نقاط: $myPoints${trumpSuit != null ? " | الحكم: $trumpSuit" : ""}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
-              const OpponentSeat(name: 'اللاعب 2'),
+              OpponentSeat(name: 'اللاعب 2', cardsCount: remaining),
               Expanded(
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  const Padding(padding: EdgeInsets.only(right: 4), child: OpponentSeat(name: 'اللاعب 3')),
+                  Padding(padding: const EdgeInsets.only(right: 4), child: OpponentSeat(name: 'اللاعب 3', cardsCount: remaining)),
                   Column(mainAxisSize: MainAxisSize.min, children: [
                     if (trick.isNotEmpty)
                       Wrap(spacing: 4, children: trick.map((c) => PlayingCardWidget(rank: c.rank, suitSymbol: c.suitSymbol, isRed: c.isRed, width: 42)).toList()),
@@ -142,7 +143,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
                       ),
                     ],
                   ]),
-                  const Padding(padding: EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4')),
+                  Padding(padding: const EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4', cardsCount: remaining)),
                 ]),
               ),
               Center(child: PlayerHandFan(cards: hand, onCardTap: playCard)),
