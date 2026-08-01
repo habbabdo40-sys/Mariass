@@ -99,7 +99,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
         final threshold = total ~/ 2;
         isSuccess = isCapot || myPoints >= threshold;
         if (isCapot) myPoints = trumpSuit != null ? 250 : 350;
-        matchTotal += myPoints;
+        matchTotal += isSuccess ? myPoints : 0;
         if (matchTotal >= targetScore) matchWon = true;
         statusText = '';
       } else {
