@@ -56,6 +56,10 @@ class _GameTableScreenState extends State<GameTableScreen> {
 
   void playCard(HandCard card) {
     if (showAuction || trick.length >= 4) return;
+    if (!isCardLegal(card, hand, [])) {
+      setState(() => statusText = 'غير مسموح! يجب اتباع نفس اللون');
+      return;
+    }
     setState(() {
       hand = hand.where((c) => c != card).toList();
       final bots = [allHands[1][tricksPlayed], allHands[2][tricksPlayed], allHands[3][tricksPlayed]];

@@ -12,3 +12,11 @@ HandCard determineTrickWinner(List<HandCard> trick) {
 int trickPoints(List<HandCard> trick) {
   return trick.fold(0, (sum, c) => sum + (sunPoints[c.rank] ?? 0));
 }
+
+bool isCardLegal(HandCard card, List<HandCard> hand, List<HandCard> currentTrick) {
+  if (currentTrick.isEmpty) return true;
+  final ledSuit = currentTrick[0].suitSymbol;
+  final hasLedSuit = hand.any((c) => c.suitSymbol == ledSuit);
+  if (!hasLedSuit) return true;
+  return card.suitSymbol == ledSuit;
+}
