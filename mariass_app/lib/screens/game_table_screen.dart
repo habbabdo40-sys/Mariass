@@ -4,6 +4,7 @@ import '../widgets/player_hand_fan.dart';
 import '../widgets/opponent_seat.dart';
 import '../widgets/auction_panel.dart';
 import '../game_engine/trick_logic.dart';
+import '../game_engine/deck.dart';
 
 class GameTableScreen extends StatefulWidget {
   const GameTableScreen({super.key});
@@ -22,14 +23,19 @@ class _GameTableScreenState extends State<GameTableScreen> {
   int tricksWon = 0;
   int tricksPlayed = 0;
 
-  List<HandCard> hand = [const HandCard('A', '♠'), const HandCard('K', '♥', isRed: true), const HandCard('10', '♦', isRed: true), const HandCard('J', '♣'), const HandCard('9', '♠')];
-  final List<List<HandCard>> botHands = [
-    [const HandCard('7', '♣'), const HandCard('8', '♦', isRed: true), const HandCard('Q', '♥', isRed: true)],
-    [const HandCard('8', '♠'), const HandCard('7', '♥', isRed: true), const HandCard('9', '♦', isRed: true)],
-    [const HandCard('Q', '♣'), const HandCard('K', '♦', isRed: true), const HandCard('7', '♠')],
-    [const HandCard('J', '♥', isRed: true), const HandCard('9', '♣'), const HandCard('8', '♥', isRed: true)],
-    [const HandCard('K', '♣'), const HandCard('Q', '♠'), const HandCard('J', '♦', isRed: true)],
-  ];
+  late List<List<HandCard>> allHands;
+  late List<HandCard> hand;
+
+  @override
+  void initState() {
+    super.initState();
+    _dealNewHands();
+  }
+
+  void _dealNewHands() {
+    allHands = dealFourHands();
+    hand = List.from(allHands[0]);
+  }
 
   void handleDecision(String code) {
     setState(() {
@@ -52,7 +58,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
     if (showAuction || trick.length >= 4) return;
     setState(() {
       hand = hand.where((c) => c != card).toList();
-      final bots = botHands[tricksPlayed];
+      final bots = [allHands[1][tricksPlayed], allHands[2][tricksPlayed], allHands[3][tricksPlayed]];
       trick = [card, ...bots];
       final winner = determineTrickWinner(trick);
       statusText = 'الفائز بالدورة: ${winner.rank} ${winner.suitSymbol}';
@@ -66,7 +72,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       trick = [];
       if (hand.isEmpty) {
         roundOver = true;
-        statusText = 'انتهت الجولة! إجمالي أخذاتك: $tricksWon من 5';
+        statusText = 'انتهت الجولة! إجمالي أخذاتك: $tricksWon من 8';
       } else {
         statusText = 'دورك للعب - أخذاتك حتى الآن: $tricksWon';
       }
@@ -84,7 +90,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       tricksWon = 0;
       tricksPlayed = 0;
       statusText = 'دورك: اختر نوع اللعب';
-      hand = [const HandCard('A', '♠'), const HandCard('K', '♥', isRed: true), const HandCard('10', '♦', isRed: true), const HandCard('J', '♣'), const HandCard('9', '♠')];
+      _dealNewHands();
     });
   }
 
