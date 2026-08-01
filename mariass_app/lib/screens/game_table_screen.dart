@@ -19,9 +19,16 @@ class _GameTableScreenState extends State<GameTableScreen> {
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
   int tricksWon = 0;
+  int tricksPlayed = 0;
 
-  List<HandCard> hand = const [HandCard('A', '♠'), HandCard('K', '♥', isRed: true), HandCard('10', '♦', isRed: true), HandCard('J', '♣'), HandCard('9', '♠')];
-  final botCards = const [HandCard('7', '♣'), HandCard('8', '♦', isRed: true), HandCard('Q', '♥', isRed: true)];
+  List<HandCard> hand = [const HandCard('A', '♠'), const HandCard('K', '♥', isRed: true), const HandCard('10', '♦', isRed: true), const HandCard('J', '♣'), const HandCard('9', '♠')];
+  final List<List<HandCard>> botHands = [
+    [const HandCard('7', '♣'), const HandCard('8', '♦', isRed: true), const HandCard('Q', '♥', isRed: true)],
+    [const HandCard('8', '♠'), const HandCard('7', '♥', isRed: true), const HandCard('9', '♦', isRed: true)],
+    [const HandCard('Q', '♣'), const HandCard('K', '♦', isRed: true), const HandCard('7', '♠')],
+    [const HandCard('J', '♥', isRed: true), const HandCard('9', '♣'), const HandCard('8', '♥', isRed: true)],
+    [const HandCard('K', '♣'), const HandCard('Q', '♠'), const HandCard('J', '♦', isRed: true)],
+  ];
 
   void handleDecision(String code) {
     setState(() {
@@ -41,20 +48,26 @@ class _GameTableScreenState extends State<GameTableScreen> {
   }
 
   void playCard(HandCard card) {
-    if (showAuction || trick.length >= 4) return;
+    if (showAuction || trick.length >= 4 || tricksPlayed >= hand.length + tricksPlayed) return;
     setState(() {
       hand = hand.where((c) => c != card).toList();
-      trick = [card, ...botCards];
+      final bots = botHands[tricksPlayed];
+      trick = [card, ...bots];
       final winner = determineTrickWinner(trick);
       statusText = 'الفائز بالدورة: ${winner.rank} ${winner.suitSymbol}';
     });
   }
 
-  void clearTrick() {
+  void nextTrick() {
     setState(() {
       tricksWon += 1;
+      tricksPlayed += 1;
       trick = [];
-      statusText = 'إجمالي أخذاتك: $tricksWon';
+      if (hand.isEmpty) {
+        statusText = 'انتهت الجولة! إجمالي أخذاتك: $tricksWon من 5';
+      } else {
+        statusText = 'دورك للعب - أخذاتك حتى الآن: $tricksWon';
+      }
     });
   }
 
@@ -68,7 +81,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
           color: const Color(0xFF0B3D0B),
           child: SafeArea(
             child: Column(children: [
-              const Padding(padding: EdgeInsets.all(12), child: Text('Mariass', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold))),
+              Padding(padding: const EdgeInsets.all(12), child: Text('Mariass - أخذات: $tricksWon', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
               const OpponentSeat(name: 'اللاعب 2'),
               Expanded(
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -78,9 +91,12 @@ class _GameTableScreenState extends State<GameTableScreen> {
                       Wrap(spacing: 4, children: trick.map((c) => PlayingCardWidget(rank: c.rank, suitSymbol: c.suitSymbol, isRed: c.isRed, width: 42)).toList()),
                     const SizedBox(height: 8),
                     Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
-                    if (trick.length >= 4) ...[
+                    if (trick.length >= 4 && hand.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      ElevatedButton(onPressed: clearTrick, child: const Text('التالي')),
+                      ElevatedButton(onPressed: nextTrick, child: const Text('الدورة التالية')),
+                    ] else if (trick.length >= 4 && hand.isEmpty) ...[
+                      const SizedBox(height: 8),
+                      ElevatedButton(onPressed: nextTrick, child: const Text('إنهاء الجولة')),
                     ],
                   ]),
                   const Padding(padding: EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4')),
