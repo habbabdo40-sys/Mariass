@@ -26,6 +26,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   List<HandCard> trick = [];
   int myPoints = 0;
   int matchTotal = 0;
+  int opponentTotal = 0;
   static const int targetScore = 1000;
   int tricksPlayed = 0;
   int myTricksWon = 0;
@@ -99,7 +100,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
         final threshold = total ~/ 2;
         isSuccess = isCapot || myPoints >= threshold;
         if (isCapot) myPoints = trumpSuit != null ? 250 : 350;
-        matchTotal += isSuccess ? myPoints : 0;
+        if (isSuccess) { matchTotal += myPoints; } else { opponentTotal += (trumpSuit != null ? 162 : 260); }
         if (matchTotal >= targetScore) matchWon = true;
         statusText = '';
       } else {
@@ -147,7 +148,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
           color: const Color(0xFF0B3D0B),
           child: SafeArea(
             child: Column(children: [
-              Padding(padding: const EdgeInsets.all(10), child: Text('Mariass | المباراة: $matchTotal / $targetScore', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+              Padding(padding: const EdgeInsets.all(10), child: Text('Mariass | أنت: $matchTotal - الخصم: $opponentTotal', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
               OpponentSeat(name: 'اللاعب 2', cardsCount: remaining),
               Expanded(
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
