@@ -21,9 +21,12 @@ class _GameTableScreenState extends State<GameTableScreen> {
   bool roundOver = false;
   bool isCapot = false;
   bool isSuccess = false;
+  bool matchWon = false;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
   int myPoints = 0;
+  int matchTotal = 0;
+  static const int targetScore = 501;
   int tricksPlayed = 0;
   int myTricksWon = 0;
   String? trumpSuit;
@@ -96,6 +99,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
         final threshold = total ~/ 2;
         isSuccess = isCapot || myPoints >= threshold;
         if (isCapot) myPoints = trumpSuit != null ? 250 : 350;
+        matchTotal += myPoints;
+        if (matchTotal >= targetScore) matchWon = true;
         statusText = '';
       } else {
         statusText = 'دورك للعب - نقاطك حتى الآن: $myPoints';
@@ -122,6 +127,14 @@ class _GameTableScreenState extends State<GameTableScreen> {
     });
   }
 
+  void startNewMatch() {
+    setState(() {
+      matchTotal = 0;
+      matchWon = false;
+      startNewRound();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final remaining = 8 - tricksPlayed;
@@ -134,13 +147,19 @@ class _GameTableScreenState extends State<GameTableScreen> {
           color: const Color(0xFF0B3D0B),
           child: SafeArea(
             child: Column(children: [
-              Padding(padding: const EdgeInsets.all(12), child: Text('Mariass - نقاط: $myPoints${trumpSuit != null ? " | الحكم: $trumpSuit" : ""}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+              Padding(padding: const EdgeInsets.all(10), child: Text('Mariass | المباراة: $matchTotal / $targetScore', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
               OpponentSeat(name: 'اللاعب 2', cardsCount: remaining),
               Expanded(
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Padding(padding: const EdgeInsets.only(right: 4), child: OpponentSeat(name: 'اللاعب 3', cardsCount: remaining)),
                   Column(mainAxisSize: MainAxisSize.min, children: [
-                    if (roundOver)
+                    if (matchWon)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: Colors.amber.shade800, borderRadius: BorderRadius.circular(16)),
+                        child: const Text('🏆 فزت بالمباراة!', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                      )
+                    else if (roundOver)
                       RoundResultCard(isCapot: isCapot, isSuccess: isSuccess, points: myPoints, total: total)
                     else ...[
                       if (trick.isNotEmpty)
@@ -152,13 +171,17 @@ class _GameTableScreenState extends State<GameTableScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton(onPressed: nextTrick, child: const Text('الدورة التالية')),
                     ],
-                    if (roundOver) ...[
+                    if (roundOver && !matchWon) ...[
                       const SizedBox(height: 16),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade800),
                         onPressed: startNewRound,
                         child: const Text('جولة جديدة', style: TextStyle(color: Colors.white)),
                       ),
+                    ],
+                    if (matchWon) ...[
+                      const SizedBox(height: 16),
+                      ElevatedButton(onPressed: startNewMatch, child: const Text('مباراة جديدة')),
                     ],
                   ]),
                   Padding(padding: const EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4', cardsCount: remaining)),
