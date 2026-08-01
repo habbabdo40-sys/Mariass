@@ -32,3 +32,7 @@ bool isCardLegal(HandCard card, List<HandCard> hand, List<HandCard> currentTrick
   if (!hasLedSuit) return true;
   return card.suitSymbol == ledSuit;
 }
+
+bool checkAmjiViolation(List<HandCard> handBeforePlay, HandCard playedCard, List<HandCard> trickBeforePlay) {
+  return !isCardLegal(playedCard, handBeforePlay, trickBeforePlay);
+}
