@@ -16,6 +16,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   bool isFirstBidder = true;
   int currentLevel = 0;
   bool quensAvailable = false;
+  bool roundOver = false;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
   int tricksWon = 0;
@@ -48,7 +49,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   }
 
   void playCard(HandCard card) {
-    if (showAuction || trick.length >= 4 || tricksPlayed >= hand.length + tricksPlayed) return;
+    if (showAuction || trick.length >= 4) return;
     setState(() {
       hand = hand.where((c) => c != card).toList();
       final bots = botHands[tricksPlayed];
@@ -64,10 +65,26 @@ class _GameTableScreenState extends State<GameTableScreen> {
       tricksPlayed += 1;
       trick = [];
       if (hand.isEmpty) {
+        roundOver = true;
         statusText = 'انتهت الجولة! إجمالي أخذاتك: $tricksWon من 5';
       } else {
         statusText = 'دورك للعب - أخذاتك حتى الآن: $tricksWon';
       }
+    });
+  }
+
+  void startNewRound() {
+    setState(() {
+      showAuction = true;
+      isFirstBidder = true;
+      currentLevel = 0;
+      quensAvailable = false;
+      roundOver = false;
+      trick = [];
+      tricksWon = 0;
+      tricksPlayed = 0;
+      statusText = 'دورك: اختر نوع اللعب';
+      hand = [const HandCard('A', '♠'), const HandCard('K', '♥', isRed: true), const HandCard('10', '♦', isRed: true), const HandCard('J', '♣'), const HandCard('9', '♠')];
     });
   }
 
@@ -91,12 +108,17 @@ class _GameTableScreenState extends State<GameTableScreen> {
                       Wrap(spacing: 4, children: trick.map((c) => PlayingCardWidget(rank: c.rank, suitSymbol: c.suitSymbol, isRed: c.isRed, width: 42)).toList()),
                     const SizedBox(height: 8),
                     Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
-                    if (trick.length >= 4 && hand.isNotEmpty) ...[
+                    if (trick.length >= 4 && !roundOver) ...[
                       const SizedBox(height: 8),
                       ElevatedButton(onPressed: nextTrick, child: const Text('الدورة التالية')),
-                    ] else if (trick.length >= 4 && hand.isEmpty) ...[
-                      const SizedBox(height: 8),
-                      ElevatedButton(onPressed: nextTrick, child: const Text('إنهاء الجولة')),
+                    ],
+                    if (roundOver) ...[
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade800),
+                        onPressed: startNewRound,
+                        child: const Text('جولة جديدة', style: TextStyle(color: Colors.white)),
+                      ),
                     ],
                   ]),
                   const Padding(padding: EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4')),
