@@ -5,6 +5,7 @@ import '../widgets/player_hand_fan.dart';
 import '../widgets/opponent_seat.dart';
 import '../widgets/auction_panel.dart';
 import '../widgets/round_result_card.dart';
+import '../widgets/auction_summary_bar.dart';
 import '../game_engine/trick_logic.dart';
 import '../game_engine/deck.dart';
 
@@ -24,6 +25,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
   bool isSuccess = false;
   bool matchWon = false;
   bool matchLost = false;
+  bool isQuensChosen = false;
+  String? bidLabel;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
   List<HandCard> bot1HandBeforePlay = [];
@@ -63,7 +66,10 @@ class _GameTableScreenState extends State<GameTableScreen> {
           isFirstBidder = false;
           quensAvailable = true;
           trumpSuit = codeToSuit[code];
+        } else {
+          isQuensChosen = true;
         }
+        bidLabel = bid['label'] as String;
         statusText = 'الحاكم: ${bid['label']} - دورك للعب';
         showAuction = false;
       }
@@ -144,6 +150,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
       roundOver = false;
       isCapot = false;
       isSuccess = false;
+      isQuensChosen = false;
+      bidLabel = null;
       trick = [];
       amjiResult = null;
       myPoints = 0;
@@ -180,6 +188,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
             child: Stack(children: [
               Column(children: [
                 Padding(padding: const EdgeInsets.all(10), child: Text('Mariass | أنت: $matchTotal - الخصم: $opponentTotal', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+                if (!showAuction) AuctionSummaryBar(bidLabel: bidLabel, trumpSuit: trumpSuit, isQuens: isQuensChosen),
                 OpponentSeat(name: 'اللاعب 2', cardsCount: remaining),
                 Expanded(
                   child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
