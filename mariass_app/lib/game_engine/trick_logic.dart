@@ -25,14 +25,17 @@ int trickPoints(List<HandCard> trick, String? trumpSuit) {
   return trick.fold(0, (sum, c) => sum + cardPoints(c, trumpSuit));
 }
 
-bool isCardLegal(HandCard card, List<HandCard> hand, List<HandCard> currentTrick) {
+bool isCardLegal(HandCard card, List<HandCard> hand, List<HandCard> currentTrick, String? trumpSuit) {
   if (currentTrick.isEmpty) return true;
   final ledSuit = currentTrick[0].suitSymbol;
   final hasLedSuit = hand.any((c) => c.suitSymbol == ledSuit);
-  if (!hasLedSuit) return true;
-  return card.suitSymbol == ledSuit;
+  if (hasLedSuit) return card.suitSymbol == ledSuit;
+  if (trumpSuit == null) return true;
+  final hasTrump = hand.any((c) => c.suitSymbol == trumpSuit);
+  if (!hasTrump) return true;
+  return card.suitSymbol == trumpSuit;
 }
 
-bool checkAmjiViolation(List<HandCard> handBeforePlay, HandCard playedCard, List<HandCard> trickBeforePlay) {
-  return !isCardLegal(playedCard, handBeforePlay, trickBeforePlay);
+bool checkAmjiViolation(List<HandCard> handBeforePlay, HandCard playedCard, List<HandCard> trickBeforePlay, String? trumpSuit) {
+  return !isCardLegal(playedCard, handBeforePlay, trickBeforePlay, trumpSuit);
 }

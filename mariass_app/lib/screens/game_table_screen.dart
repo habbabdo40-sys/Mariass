@@ -82,8 +82,9 @@ class _GameTableScreenState extends State<GameTableScreen> {
 
   void playCard(HandCard card) {
     if (showAuction || trick.length >= 4) return;
-    if (!isCardLegal(card, hand, [])) {
-      setState(() => statusText = 'غير مسموح! يجب اتباع نفس اللون');
+    if (!isCardLegal(card, hand, [], trumpSuit)) {
+      final hasTrump = trumpSuit != null && hand.any((c) => c.suitSymbol == trumpSuit);
+      setState(() => statusText = hasTrump ? 'غير مسموح! يجب القطع بالحكم' : 'غير مسموح! يجب اتباع نفس اللون');
       return;
     }
     setState(() {
@@ -119,7 +120,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
         currentTrick: currentTrickPlays.isNotEmpty ? TrickRecord(currentTrickPlays) : null,
         onPick: (picked) {
           Navigator.pop(context);
-          final violation = checkAmjiViolation(picked.handBeforePlay, picked.card, picked.trickBeforePlay);
+          final violation = checkAmjiViolation(picked.handBeforePlay, picked.card, picked.trickBeforePlay, trumpSuit);
           setState(() {
             amjiResult = violation ? '✅ أمجي صحيح! ${picked.playerName} خالف القاعدة' : '❌ خطأ! ${picked.playerName} لم يخالف - انقلب عليك الأمجي';
           });
