@@ -3,6 +3,7 @@ import '../widgets/playing_card_widget.dart';
 import '../widgets/player_hand_fan.dart';
 import '../widgets/opponent_seat.dart';
 import '../widgets/auction_panel.dart';
+import '../game_engine/trick_logic.dart';
 
 class GameTableScreen extends StatefulWidget {
   const GameTableScreen({super.key});
@@ -20,7 +21,6 @@ class _GameTableScreenState extends State<GameTableScreen> {
   int tricksWon = 0;
 
   List<HandCard> hand = const [HandCard('A', '♠'), HandCard('K', '♥', isRed: true), HandCard('10', '♦', isRed: true), HandCard('J', '♣'), HandCard('9', '♠')];
-
   final botCards = const [HandCard('7', '♣'), HandCard('8', '♦', isRed: true), HandCard('Q', '♥', isRed: true)];
 
   void handleDecision(String code) {
@@ -45,7 +45,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
     setState(() {
       hand = hand.where((c) => c != card).toList();
       trick = [card, ...botCards];
-      statusText = 'اكتملت الدورة - 4 أوراق';
+      final winner = determineTrickWinner(trick);
+      statusText = 'الفائز بالدورة: ${winner.rank} ${winner.suitSymbol}';
     });
   }
 
@@ -53,7 +54,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
     setState(() {
       tricksWon += 1;
       trick = [];
-      statusText = 'أخذت الدورة! المجموع: $tricksWon';
+      statusText = 'إجمالي أخذاتك: $tricksWon';
     });
   }
 
@@ -79,7 +80,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
                     Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
                     if (trick.length >= 4) ...[
                       const SizedBox(height: 8),
-                      ElevatedButton(onPressed: clearTrick, child: const Text('اجمع الأخذة')),
+                      ElevatedButton(onPressed: clearTrick, child: const Text('التالي')),
                     ],
                   ]),
                   const Padding(padding: EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4')),
