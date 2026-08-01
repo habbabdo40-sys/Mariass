@@ -15,14 +15,15 @@ class PlayerHandFan extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = cards.length;
-    final spread = (n - 1) * 0.13;
     return SizedBox(
+      width: n * 40.0 + 40,
       height: 150,
       child: Stack(alignment: Alignment.bottomCenter, children: List.generate(n, (i) {
-        final angle = -spread / 2 + i * 0.13;
-        return Transform.translate(
-          offset: Offset(i * 30.0 - (n * 15), angle.abs() * -70),
-          child: Transform.rotate(angle: angle, child: PlayingCardWidget(rank: cards[i].rank, suitSymbol: cards[i].suitSymbol, isRed: cards[i].isRed, width: 66)),
+        final angle = (i - (n - 1) / 2) * 0.13;
+        return Positioned(
+          left: i * 34.0,
+          bottom: angle.abs() * 40,
+          child: Transform.rotate(angle: angle, child: PlayingCardWidget(rank: cards[i].rank, suitSymbol: cards[i].suitSymbol, isRed: cards[i].isRed, width: 62)),
         );
       })),
     );
