@@ -16,9 +16,12 @@ class _GameTableScreenState extends State<GameTableScreen> {
   int currentLevel = 0;
   bool quensAvailable = false;
   String statusText = 'دورك: اختر نوع اللعب';
-  HandCard? playedCard;
+  List<HandCard> trick = [];
+  int tricksWon = 0;
 
   List<HandCard> hand = const [HandCard('A', '♠'), HandCard('K', '♥', isRed: true), HandCard('10', '♦', isRed: true), HandCard('J', '♣'), HandCard('9', '♠')];
+
+  final botCards = const [HandCard('7', '♣'), HandCard('8', '♦', isRed: true), HandCard('Q', '♥', isRed: true)];
 
   void handleDecision(String code) {
     setState(() {
@@ -38,11 +41,19 @@ class _GameTableScreenState extends State<GameTableScreen> {
   }
 
   void playCard(HandCard card) {
-    if (showAuction) return;
+    if (showAuction || trick.length >= 4) return;
     setState(() {
-      playedCard = card;
       hand = hand.where((c) => c != card).toList();
-      statusText = 'رميت: ${card.rank} ${card.suitSymbol}';
+      trick = [card, ...botCards];
+      statusText = 'اكتملت الدورة - 4 أوراق';
+    });
+  }
+
+  void clearTrick() {
+    setState(() {
+      tricksWon += 1;
+      trick = [];
+      statusText = 'أخذت الدورة! المجموع: $tricksWon';
     });
   }
 
@@ -62,9 +73,14 @@ class _GameTableScreenState extends State<GameTableScreen> {
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Padding(padding: EdgeInsets.only(right: 4), child: OpponentSeat(name: 'اللاعب 3')),
                   Column(mainAxisSize: MainAxisSize.min, children: [
-                    if (playedCard != null) PlayingCardWidget(rank: playedCard!.rank, suitSymbol: playedCard!.suitSymbol, isRed: playedCard!.isRed, width: 56),
+                    if (trick.isNotEmpty)
+                      Wrap(spacing: 4, children: trick.map((c) => PlayingCardWidget(rank: c.rank, suitSymbol: c.suitSymbol, isRed: c.isRed, width: 42)).toList()),
                     const SizedBox(height: 8),
                     Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
+                    if (trick.length >= 4) ...[
+                      const SizedBox(height: 8),
+                      ElevatedButton(onPressed: clearTrick, child: const Text('اجمع الأخذة')),
+                    ],
                   ]),
                   const Padding(padding: EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4')),
                 ]),
