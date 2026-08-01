@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/playing_card_widget.dart';
 import '../widgets/player_hand_fan.dart';
 import '../widgets/opponent_seat.dart';
 import '../widgets/auction_panel.dart';
@@ -15,24 +16,32 @@ class _GameTableScreenState extends State<GameTableScreen> {
   int currentLevel = 0;
   bool quensAvailable = false;
   String statusText = 'دورك: اختر نوع اللعب';
+  HandCard? playedCard;
 
-  final hand = const [HandCard('A', '♠'), HandCard('K', '♥', isRed: true), HandCard('10', '♦', isRed: true), HandCard('J', '♣'), HandCard('9', '♠')];
+  List<HandCard> hand = const [HandCard('A', '♠'), HandCard('K', '♥', isRed: true), HandCard('10', '♦', isRed: true), HandCard('J', '♣'), HandCard('9', '♠')];
 
   void handleDecision(String code) {
     setState(() {
       if (code == 'BASS') {
         statusText = 'تم التمرير';
-      } else if (code == 'QUENS') {
-        statusText = 'تم اختيار Quens ×2 - بدء اللعب';
-        showAuction = false;
       } else {
-        final bid = bidLadder.firstWhere((b) => b['code'] == code);
-        currentLevel = bid['level'] as int;
-        statusText = 'الحاكم: ${bid['label']}';
-        isFirstBidder = false;
-        quensAvailable = true;
+        final bid = code == 'QUENS' ? {'label': 'Quens ×2'} : bidLadder.firstWhere((b) => b['code'] == code);
+        if (code != 'QUENS') {
+          currentLevel = bidLadder.firstWhere((b) => b['code'] == code)['level'] as int;
+          isFirstBidder = false;
+          quensAvailable = true;
+        }
+        statusText = 'الحاكم: ${bid['label']} - دورك للعب';
         showAuction = false;
       }
+    });
+  }
+
+  void playCard(HandCard card) {
+    setState(() {
+      playedCard = card;
+      hand = hand.where((c) => c != card).toList();
+      statusText = 'رميت: ${card.rank} ${card.suitSymbol}';
     });
   }
 
@@ -51,11 +60,20 @@ class _GameTableScreenState extends State<GameTableScreen> {
               Expanded(
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Padding(padding: EdgeInsets.only(right: 4), child: OpponentSeat(name: 'اللاعب 3')),
-                  Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  Column(mainAxisSize: MainAxisSize.min, children: [
+                    if (playedCard != null) PlayingCardWidget(rank: playedCard!.rank, suitSymbol: playedCard!.suitSymbol, isRed: playedCard!.isRed, width: 56),
+                    const SizedBox(height: 8),
+                    Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
+                  ]),
                   const Padding(padding: EdgeInsets.only(left: 4), child: OpponentSeat(name: 'اللاعب 4')),
                 ]),
               ),
-              Center(child: PlayerHandFan(cards: hand)),
+              GestureDetector(
+                onTapUp: (details) {
+                  if (!showAuction && hand.isNotEmpty) playCard(hand.first);
+                },
+                child: Center(child: PlayerHandFan(cards: hand)),
+              ),
               const SizedBox(height: 10),
               if (showAuction) AuctionPanel(isFirstBidder: isFirstBidder, currentHighestLevel: currentLevel, isQuensAvailable: quensAvailable, onDecision: handleDecision),
             ]),
