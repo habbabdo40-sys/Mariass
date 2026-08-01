@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/game_table_screen.dart';
 
 void main() {
   runApp(const MariassApp());
@@ -12,22 +13,7 @@ class MariassApp extends StatelessWidget {
     return MaterialApp(
       title: 'Mariass',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-      ),
-      home: const Scaffold(
-        backgroundColor: Color(0xFF0B3D0B),
-        body: Center(
-          child: Text(
-            'Mariass',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
+      home: const GameTableScreen(),
     );
   }
 }
