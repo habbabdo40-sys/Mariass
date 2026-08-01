@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/game_table_screen.dart';
+import 'screens/auction_demo_screen.dart';
 
 void main() {
   runApp(const MariassApp());
@@ -7,13 +7,8 @@ void main() {
 
 class MariassApp extends StatelessWidget {
   const MariassApp({super.key});
-
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Mariass',
-      debugShowCheckedModeBanner: false,
-      home: const GameTableScreen(),
-    );
+    return MaterialApp(title: 'Mariass', debugShowCheckedModeBanner: false, home: const AuctionDemoScreen());
   }
 }
