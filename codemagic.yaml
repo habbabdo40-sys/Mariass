@@ -7,7 +7,7 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
-      - name: Build APK
-        script: flutter build apk --release
+      - name: Build Universal APK
+        script: flutter build apk --release --no-pub
     artifacts:
       - build/**/outputs/**/*.apk
