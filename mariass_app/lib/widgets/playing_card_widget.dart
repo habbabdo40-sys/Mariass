@@ -5,8 +5,9 @@ class PlayingCardWidget extends StatelessWidget {
   final String suitSymbol;
   final bool isRed;
   final double width;
+  final bool highlight;
 
-  const PlayingCardWidget({super.key, required this.rank, required this.suitSymbol, this.isRed = false, this.width = 62});
+  const PlayingCardWidget({super.key, required this.rank, required this.suitSymbol, this.isRed = false, this.width = 62, this.highlight = false});
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +15,7 @@ class PlayingCardWidget extends StatelessWidget {
     return Container(
       width: width,
       height: width * 1.42,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(width * 0.09), border: Border.all(color: const Color(0xFFCCCCCC), width: 0.7), boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 5, offset: Offset(1, 2))]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(width * 0.09), border: Border.all(color: highlight ? const Color(0xFFFFD700) : const Color(0xFFCCCCCC), width: highlight ? 2.5 : 0.7), boxShadow: [BoxShadow(color: highlight ? const Color(0xFFFFD700).withOpacity(0.6) : Colors.black45, blurRadius: highlight ? 8 : 5, offset: const Offset(1, 2))]),
       child: Padding(
         padding: EdgeInsets.all(width * 0.07),
         child: Stack(children: [

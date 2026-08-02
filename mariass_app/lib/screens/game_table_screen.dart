@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import '../widgets/playing_card_widget.dart';
 import '../widgets/player_hand_fan.dart';
@@ -93,16 +92,15 @@ class _GameTableScreenState extends State<GameTableScreen> {
       hand = hand.where((c) => c != card).toList();
       currentTrickPlays = [PlayedCard(card: card, playerName: playerNames[0], handBeforePlay: handBefore, trickBeforePlay: [])];
 
-      final rand = Random();
-      final botHandsBefore = [allHands[1].sublist(tricksPlayed), allHands[2].sublist(tricksPlayed), allHands[3].sublist(tricksPlayed)];
-      final legalBots = [allHands[1][tricksPlayed], allHands[2][tricksPlayed], allHands[3][tricksPlayed]];
-      final bot1Card = rand.nextDouble() < 0.3 && botHandsBefore[0].length > 1 ? botHandsBefore[0][1] : legalBots[0];
-
       final playedSoFar = <HandCard>[card];
-      final bots = [bot1Card, legalBots[1], legalBots[2]];
-      for (int i = 0; i < bots.length; i++) {
-        currentTrickPlays.add(PlayedCard(card: bots[i], playerName: playerNames[i + 1], handBeforePlay: botHandsBefore[i], trickBeforePlay: List.from(playedSoFar)));
-        playedSoFar.add(bots[i]);
+      final bots = <HandCard>[];
+      for (int i = 1; i <= 3; i++) {
+        final botHandBefore = List<HandCard>.from(allHands[i]);
+        final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit);
+        currentTrickPlays.add(PlayedCard(card: chosen, playerName: playerNames[i], handBeforePlay: botHandBefore, trickBeforePlay: List.from(playedSoFar)));
+        allHands[i] = allHands[i].where((c) => c != chosen).toList();
+        bots.add(chosen);
+        playedSoFar.add(chosen);
       }
 
       trick = [card, ...bots];

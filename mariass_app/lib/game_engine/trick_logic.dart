@@ -33,9 +33,48 @@ bool isCardLegal(HandCard card, List<HandCard> hand, List<HandCard> currentTrick
   if (trumpSuit == null) return true;
   final hasTrump = hand.any((c) => c.suitSymbol == trumpSuit);
   if (!hasTrump) return true;
-  return card.suitSymbol == trumpSuit;
+  if (card.suitSymbol != trumpSuit) return false;
+  final trumpsInTrick = currentTrick.where((c) => c.suitSymbol == trumpSuit).toList();
+  if (trumpsInTrick.isEmpty) return true;
+  final highestTrumpSoFar = trumpsInTrick.reduce(
+    (best, c) => cardStrength(c, trumpSuit) > cardStrength(best, trumpSuit) ? c : best,
+  );
+  final higherTrumpsInHand = hand.where(
+    (c) => c.suitSymbol == trumpSuit && cardStrength(c, trumpSuit) > cardStrength(highestTrumpSoFar, trumpSuit),
+  ).toList();
+  if (higherTrumpsInHand.isEmpty) return true;
+  return cardStrength(card, trumpSuit) > cardStrength(highestTrumpSoFar, trumpSuit);
 }
 
 bool checkAmjiViolation(List<HandCard> handBeforePlay, HandCard playedCard, List<HandCard> trickBeforePlay, String? trumpSuit) {
   return !isCardLegal(playedCard, handBeforePlay, trickBeforePlay, trumpSuit);
+}
+
+
+HandCard chooseBotCard(List<HandCard> hand, List<HandCard> currentTrick, String? trumpSuit) {
+  final legal = hand.where((c) => isCardLegal(c, hand, currentTrick, trumpSuit)).toList();
+  if (legal.isEmpty) return hand.first;
+
+  if (currentTrick.isEmpty) {
+    final nonTrump = legal.where((c) => trumpSuit == null || c.suitSymbol != trumpSuit).toList();
+    if (nonTrump.isNotEmpty) {
+      nonTrump.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
+      return nonTrump.first;
+    }
+    legal.sort((a, b) => cardStrength(a, trumpSuit).compareTo(cardStrength(b, trumpSuit)));
+    return legal.first;
+  }
+
+  final canWinCards = legal.where((c) {
+    final hypothetical = [...currentTrick, c];
+    return determineTrickWinner(hypothetical, trumpSuit) == c;
+  }).toList();
+
+  if (canWinCards.isNotEmpty) {
+    canWinCards.sort((a, b) => cardStrength(a, trumpSuit).compareTo(cardStrength(b, trumpSuit)));
+    return canWinCards.first;
+  }
+
+  legal.sort((a, b) => cardPoints(a, trumpSuit).compareTo(cardPoints(b, trumpSuit)));
+  return legal.first;
 }
