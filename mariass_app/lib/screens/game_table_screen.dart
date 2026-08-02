@@ -181,7 +181,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
     setState(() {
       final points = trickPoints(trick, trumpSuit);
       final winner = determineTrickWinner(trick, trumpSuit);
-      final iWon = winner == trick[0];
+      final iWon = winner == trick[0] || winner == trick[1];
       if (iWon) {
         myPoints += points;
         myTricksWon += 1;
