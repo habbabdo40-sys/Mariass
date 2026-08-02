@@ -142,7 +142,11 @@ class _GameTableScreenState extends State<GameTableScreen> {
       final bots = <HandCard>[];
       for (int i = 1; i <= 3; i++) {
         final botHandBefore = List<HandCard>.from(allHands[i]);
-        final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit);
+        final allPlayedThisRound = [
+          ...completedTricks.expand((t) => t.plays.map((p) => p.card)),
+          ...playedSoFar,
+        ];
+        final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound);
         currentTrickPlays.add(PlayedCard(card: chosen, playerName: playerNames[i], handBeforePlay: botHandBefore, trickBeforePlay: List.from(playedSoFar)));
         allHands[i] = allHands[i].where((c) => c != chosen).toList();
         bots.add(chosen);

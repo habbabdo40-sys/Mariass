@@ -51,13 +51,28 @@ bool checkAmjiViolation(List<HandCard> handBeforePlay, HandCard playedCard, List
 }
 
 
-HandCard chooseBotCard(List<HandCard> hand, List<HandCard> currentTrick, String? trumpSuit) {
+bool _isSafeLead(HandCard card, List<HandCard> playedSoFar, String? trumpSuit) {
+  final order = (trumpSuit != null && card.suitSymbol == trumpSuit) ? hakemTrumpOrder : sunOrder;
+  final idx = order.indexOf(card.rank);
+  final higherRanks = order.sublist(idx + 1);
+  final higherPlayed = playedSoFar.where(
+    (c) => c.suitSymbol == card.suitSymbol && higherRanks.contains(c.rank),
+  ).length;
+  return higherPlayed == higherRanks.length;
+}
+
+HandCard chooseBotCard(List<HandCard> hand, List<HandCard> currentTrick, String? trumpSuit, [List<HandCard> playedSoFarThisRound = const []]) {
   final legal = hand.where((c) => isCardLegal(c, hand, currentTrick, trumpSuit)).toList();
   if (legal.isEmpty) return hand.first;
 
   if (currentTrick.isEmpty) {
     final nonTrump = legal.where((c) => trumpSuit == null || c.suitSymbol != trumpSuit).toList();
     if (nonTrump.isNotEmpty) {
+      final safeLeads = nonTrump.where((c) => _isSafeLead(c, playedSoFarThisRound, trumpSuit)).toList();
+      if (safeLeads.isNotEmpty) {
+        safeLeads.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
+        return safeLeads.first;
+      }
       nonTrump.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
       return nonTrump.first;
     }
