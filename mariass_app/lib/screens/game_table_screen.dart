@@ -28,6 +28,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   bool matchLost = false;
   bool isQuensChosen = false;
   List<bool> hasPassedBid = [false, false, false, false];
+  int leaderIndex = 0;
   String? bidLabel;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
@@ -126,22 +127,27 @@ class _GameTableScreenState extends State<GameTableScreen> {
   }
 
   void playCard(HandCard card) {
-    if (showAuction || trick.length >= 4) return;
-    if (!isCardLegal(card, hand, [], trumpSuit)) {
+    if (showAuction || currentTrickPlays.length >= 4) return;
+    final order = List.generate(4, (i) => (leaderIndex + i) % 4);
+    final humanTurnIndex = order.indexOf(0);
+    if (currentTrickPlays.length != humanTurnIndex) return;
+    final currentTrick = currentTrickPlays.map((p) => p.card).toList();
+    if (!isCardLegal(card, hand, currentTrick, trumpSuit)) {
       final hasTrump = trumpSuit != null && hand.any((c) => c.suitSymbol == trumpSuit);
-      setState(() => statusText = hasTrump ? 'غير مسموح! يجب القطع بالحكم' : 'غير مسموح! يجب اتباع نفس اللون');
+      setState(() => statusText = hasTrump ? 'يجب اللعب بلون الحكم إن أمكن' : 'يجب اللعب بنفس لون الورقة المفتوحة');
       return;
     }
     setState(() {
       amjiResult = null;
       final handBefore = List<HandCard>.from(hand);
       hand = hand.where((c) => c != card).toList();
-      currentTrickPlays = [PlayedCard(card: card, playerName: playerNames[0], handBeforePlay: handBefore, trickBeforePlay: [])];
+      currentTrickPlays.add(PlayedCard(card: card, playerName: playerNames[0], handBeforePlay: handBefore, trickBeforePlay: List.from(currentTrick)));
+      trick.add(card);
 
-      final playedSoFar = <HandCard>[card];
-      final bots = <HandCard>[];
-      for (int i = 1; i <= 3; i++) {
+      for (int step = humanTurnIndex + 1; step < 4; step++) {
+        final i = order[step];
         final botHandBefore = List<HandCard>.from(allHands[i]);
+        final playedSoFar = currentTrickPlays.map((p) => p.card).toList();
         final allPlayedThisRound = [
           ...completedTricks.expand((t) => t.plays.map((p) => p.card)),
           ...playedSoFar,
@@ -149,14 +155,12 @@ class _GameTableScreenState extends State<GameTableScreen> {
         final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound);
         currentTrickPlays.add(PlayedCard(card: chosen, playerName: playerNames[i], handBeforePlay: botHandBefore, trickBeforePlay: List.from(playedSoFar)));
         allHands[i] = allHands[i].where((c) => c != chosen).toList();
-        bots.add(chosen);
-        playedSoFar.add(chosen);
+        trick.add(chosen);
       }
 
-      trick = [card, ...bots];
       final winner = determineTrickWinner(trick, trumpSuit);
       final points = trickPoints(trick, trumpSuit);
-      statusText = 'الفائز: ${winner.rank} ${winner.suitSymbol} (+$points نقطة)';
+      statusText = 'ربح ${winner.rank}${winner.suitSymbol} (+$points نقطة)';
     });
   }
 
@@ -181,7 +185,9 @@ class _GameTableScreenState extends State<GameTableScreen> {
     setState(() {
       final points = trickPoints(trick, trumpSuit);
       final winner = determineTrickWinner(trick, trumpSuit);
-      final iWon = winner == trick[0] || winner == trick[1];
+      final winnerPlay = currentTrickPlays.firstWhere((p) => p.card == winner);
+      final winnerIndex = playerNames.indexOf(winnerPlay.playerName);
+      final iWon = winnerIndex == 0 || winnerIndex == 1;
       if (iWon) {
         myPoints += points;
         myTricksWon += 1;
@@ -191,6 +197,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       tricksPlayed += 1;
       trick = [];
       amjiResult = null;
+      leaderIndex = winnerIndex;
       if (hand.isEmpty) {
         roundOver = true;
         isCapot = myTricksWon == 8;
@@ -208,9 +215,28 @@ class _GameTableScreenState extends State<GameTableScreen> {
         if (opponentTotal >= targetScore) matchLost = true;
         statusText = '';
       } else {
-        statusText = 'دورك للعب - نقاطك حتى الآن: $myPoints';
+        statusText = 'دور اللعب: $myPoints';
+        _playLeadingBots();
       }
     });
+  }
+
+  void _playLeadingBots() {
+    final order = List.generate(4, (i) => (leaderIndex + i) % 4);
+    final humanTurnIndex = order.indexOf(0);
+    for (int step = 0; step < humanTurnIndex; step++) {
+      final i = order[step];
+      final botHandBefore = List<HandCard>.from(allHands[i]);
+      final playedSoFar = currentTrickPlays.map((p) => p.card).toList();
+      final allPlayedThisRound = [
+        ...completedTricks.expand((t) => t.plays.map((p) => p.card)),
+        ...playedSoFar,
+      ];
+      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound);
+      currentTrickPlays.add(PlayedCard(card: chosen, playerName: playerNames[i], handBeforePlay: botHandBefore, trickBeforePlay: List.from(playedSoFar)));
+      allHands[i] = allHands[i].where((c) => c != chosen).toList();
+      trick.add(chosen);
+    }
   }
 
   void startNewRound() {
@@ -228,6 +254,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       trick = [];
       currentTrickPlays = [];
       completedTricks = [];
+      leaderIndex = 0;
       amjiResult = null;
       myPoints = 0;
       tricksPlayed = 0;
