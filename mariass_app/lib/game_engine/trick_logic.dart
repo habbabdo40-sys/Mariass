@@ -96,15 +96,26 @@ HandCard chooseBotCard(
           return requested.first;
         }
       }
+      final suitCounts = <String, int>{};
+      for (final c in hand) {
+        if (c.suitSymbol == trumpSuit) continue;
+        suitCounts[c.suitSymbol] = (suitCounts[c.suitSymbol] ?? 0) + 1;
+      }
+      bool isLoneAce(HandCard c) => c.rank == 'A' && (suitCounts[c.suitSymbol] ?? 0) == 1;
+
       final avoiding = nonTrump.where((c) => !partnerExcludedSuits.contains(c.suitSymbol)).toList();
       final pool = avoiding.isNotEmpty ? avoiding : nonTrump;
       final safeLeads = pool.where((c) => _isSafeLead(c, playedSoFarThisRound, trumpSuit)).toList();
-      if (safeLeads.isNotEmpty) {
-        safeLeads.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
-        return safeLeads.first;
+      final safeLeadsKeepingAces = safeLeads.where((c) => !isLoneAce(c)).toList();
+      final preferredSafe = safeLeadsKeepingAces.isNotEmpty ? safeLeadsKeepingAces : safeLeads;
+      if (preferredSafe.isNotEmpty) {
+        preferredSafe.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
+        return preferredSafe.first;
       }
-      pool.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
-      return pool.first;
+      final poolKeepingAces = pool.where((c) => !isLoneAce(c)).toList();
+      final finalPool = poolKeepingAces.isNotEmpty ? poolKeepingAces : pool;
+      finalPool.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
+      return finalPool.first;
     }
     legal.sort((a, b) => cardStrength(a, trumpSuit).compareTo(cardStrength(b, trumpSuit)));
     return legal.first;
