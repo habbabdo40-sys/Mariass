@@ -185,7 +185,9 @@ class _GameTableScreenState extends State<GameTableScreen> {
       })();
       final partnerIndex = i == 0 ? 1 : (i == 1 ? 0 : (i == 2 ? 3 : 2));
       final signals = _analyzePartnerSignals(partnerIndex);
-      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound, partnerIsWinning, signals['excluded'] as Set<String>, signals['requested'] as String?);
+      final declarerTeam = declarerIndex == null ? null : (declarerIndex == 0 || declarerIndex == 1 ? 0 : 1);
+      final isDeclarerTeam = declarerTeam == myTeam;
+      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound, partnerIsWinning, signals['excluded'] as Set<String>, signals['requested'] as String?, isDeclarerTeam);
         currentTrickPlays.add(PlayedCard(card: chosen, playerName: playerNames[i], handBeforePlay: botHandBefore, trickBeforePlay: List.from(playedSoFar)));
         allHands[i] = allHands[i].where((c) => c != chosen).toList();
         trick.add(chosen);
@@ -275,7 +277,9 @@ class _GameTableScreenState extends State<GameTableScreen> {
       })();
       final partnerIndex = i == 0 ? 1 : (i == 1 ? 0 : (i == 2 ? 3 : 2));
       final signals = _analyzePartnerSignals(partnerIndex);
-      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound, partnerIsWinning, signals['excluded'] as Set<String>, signals['requested'] as String?);
+      final declarerTeam = declarerIndex == null ? null : (declarerIndex == 0 || declarerIndex == 1 ? 0 : 1);
+      final isDeclarerTeam = declarerTeam == myTeam;
+      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound, partnerIsWinning, signals['excluded'] as Set<String>, signals['requested'] as String?, isDeclarerTeam);
       currentTrickPlays.add(PlayedCard(card: chosen, playerName: playerNames[i], handBeforePlay: botHandBefore, trickBeforePlay: List.from(playedSoFar)));
       allHands[i] = allHands[i].where((c) => c != chosen).toList();
       trick.add(chosen);

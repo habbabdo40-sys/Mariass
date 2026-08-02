@@ -69,12 +69,13 @@ HandCard chooseBotCard(
   bool partnerIsWinning = false,
   Set<String> partnerExcludedSuits = const {},
   String? partnerRequestedSuit,
+  bool isDeclarerTeam = false,
 ]) {
   final legal = hand.where((c) => isCardLegal(c, hand, currentTrick, trumpSuit)).toList();
   if (legal.isEmpty) return hand.first;
 
   if (currentTrick.isEmpty) {
-    if (trumpSuit != null) {
+    if (trumpSuit != null && isDeclarerTeam) {
       final trumpCards = legal.where((c) => c.suitSymbol == trumpSuit).toList();
       if (trumpCards.length >= 2) {
         final trumpPlayed = playedSoFarThisRound.where((c) => c.suitSymbol == trumpSuit).length;
