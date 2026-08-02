@@ -61,33 +61,64 @@ bool _isSafeLead(HandCard card, List<HandCard> playedSoFar, String? trumpSuit) {
   return higherPlayed == higherRanks.length;
 }
 
-HandCard chooseBotCard(List<HandCard> hand, List<HandCard> currentTrick, String? trumpSuit, [List<HandCard> playedSoFarThisRound = const []]) {
+HandCard chooseBotCard(
+  List<HandCard> hand,
+  List<HandCard> currentTrick,
+  String? trumpSuit, [
+  List<HandCard> playedSoFarThisRound = const [],
+  bool partnerIsWinning = false,
+  Set<String> partnerExcludedSuits = const {},
+  String? partnerRequestedSuit,
+]) {
   final legal = hand.where((c) => isCardLegal(c, hand, currentTrick, trumpSuit)).toList();
   if (legal.isEmpty) return hand.first;
 
   if (currentTrick.isEmpty) {
+    if (trumpSuit != null) {
+      final trumpCards = legal.where((c) => c.suitSymbol == trumpSuit).toList();
+      if (trumpCards.length >= 2) {
+        final trumpPlayed = playedSoFarThisRound.where((c) => c.suitSymbol == trumpSuit).length;
+        final trumpRemaining = 8 - trumpPlayed - trumpCards.length;
+        if (trumpRemaining > 0) {
+          trumpCards.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
+          return trumpCards.first;
+        }
+      }
+    }
+
     final nonTrump = legal.where((c) => trumpSuit == null || c.suitSymbol != trumpSuit).toList();
     if (nonTrump.isNotEmpty) {
-      final safeLeads = nonTrump.where((c) => _isSafeLead(c, playedSoFarThisRound, trumpSuit)).toList();
+      if (partnerRequestedSuit != null) {
+        final requested = nonTrump.where((c) => c.suitSymbol == partnerRequestedSuit).toList();
+        if (requested.isNotEmpty) {
+          requested.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
+          return requested.first;
+        }
+      }
+      final avoiding = nonTrump.where((c) => !partnerExcludedSuits.contains(c.suitSymbol)).toList();
+      final pool = avoiding.isNotEmpty ? avoiding : nonTrump;
+      final safeLeads = pool.where((c) => _isSafeLead(c, playedSoFarThisRound, trumpSuit)).toList();
       if (safeLeads.isNotEmpty) {
         safeLeads.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
         return safeLeads.first;
       }
-      nonTrump.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
-      return nonTrump.first;
+      pool.sort((a, b) => cardStrength(b, trumpSuit).compareTo(cardStrength(a, trumpSuit)));
+      return pool.first;
     }
     legal.sort((a, b) => cardStrength(a, trumpSuit).compareTo(cardStrength(b, trumpSuit)));
     return legal.first;
   }
 
-  final canWinCards = legal.where((c) {
-    final hypothetical = [...currentTrick, c];
-    return determineTrickWinner(hypothetical, trumpSuit) == c;
-  }).toList();
+  if (!partnerIsWinning) {
+    final canWinCards = legal.where((c) {
+      final hypothetical = [...currentTrick, c];
+      return determineTrickWinner(hypothetical, trumpSuit) == c;
+    }).toList();
 
-  if (canWinCards.isNotEmpty) {
-    canWinCards.sort((a, b) => cardStrength(a, trumpSuit).compareTo(cardStrength(b, trumpSuit)));
-    return canWinCards.first;
+    if (canWinCards.isNotEmpty) {
+      canWinCards.sort((a, b) => cardStrength(a, trumpSuit).compareTo(cardStrength(b, trumpSuit)));
+      return canWinCards.first;
+    }
   }
 
   legal.sort((a, b) => cardPoints(a, trumpSuit).compareTo(cardPoints(b, trumpSuit)));

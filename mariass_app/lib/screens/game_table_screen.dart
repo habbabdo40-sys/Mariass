@@ -29,6 +29,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   bool isQuensChosen = false;
   List<bool> hasPassedBid = [false, false, false, false];
   int leaderIndex = 0;
+  int? declarerIndex;
   String? bidLabel;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
@@ -83,6 +84,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
 
   void _applyBid(int playerIndex, String code) {
     final bid = bidLadder.firstWhere((b) => b['code'] == code);
+    declarerIndex = playerIndex;
     currentLevel = bid['level'] as int;
     quensAvailable = true;
     trumpSuit = codeToSuit[code];
@@ -126,6 +128,27 @@ class _GameTableScreenState extends State<GameTableScreen> {
     }
   }
 
+  Map<String, dynamic> _analyzePartnerSignals(int partnerIndex) {
+    final partnerName = playerNames[partnerIndex];
+    final excluded = <String>{};
+    String? requested;
+    for (final t in completedTricks) {
+      if (t.plays.isEmpty) continue;
+      final ledSuit = t.plays[0].card.suitSymbol;
+      if (trumpSuit == null || ledSuit != trumpSuit) continue;
+      final partnerPlays = t.plays.where((p) => p.playerName == partnerName).toList();
+      if (partnerPlays.isEmpty) continue;
+      final card = partnerPlays.first.card;
+      if (card.suitSymbol == trumpSuit) continue;
+      if (card.rank == 'A') {
+        requested = card.suitSymbol;
+      } else {
+        excluded.add(card.suitSymbol);
+      }
+    }
+    return {'excluded': excluded, 'requested': requested};
+  }
+
   void playCard(HandCard card) {
     if (showAuction || currentTrickPlays.length >= 4) return;
     final order = List.generate(4, (i) => (leaderIndex + i) % 4);
@@ -152,7 +175,17 @@ class _GameTableScreenState extends State<GameTableScreen> {
           ...completedTricks.expand((t) => t.plays.map((p) => p.card)),
           ...playedSoFar,
         ];
-        final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound);
+        final myTeam = i == 0 || i == 1 ? 0 : 1;
+      final partnerIsWinning = playedSoFar.isNotEmpty && (() {
+        final currentBest = determineTrickWinner(playedSoFar, trumpSuit);
+        final bestPlay = currentTrickPlays.firstWhere((p) => p.card == currentBest);
+        final bestIndex = playerNames.indexOf(bestPlay.playerName);
+        final bestTeam = bestIndex == 0 || bestIndex == 1 ? 0 : 1;
+        return bestTeam == myTeam;
+      })();
+      final partnerIndex = i == 0 ? 1 : (i == 1 ? 0 : (i == 2 ? 3 : 2));
+      final signals = _analyzePartnerSignals(partnerIndex);
+      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound, partnerIsWinning, signals['excluded'] as Set<String>, signals['requested'] as String?);
         currentTrickPlays.add(PlayedCard(card: chosen, playerName: playerNames[i], handBeforePlay: botHandBefore, trickBeforePlay: List.from(playedSoFar)));
         allHands[i] = allHands[i].where((c) => c != chosen).toList();
         trick.add(chosen);
@@ -232,7 +265,17 @@ class _GameTableScreenState extends State<GameTableScreen> {
         ...completedTricks.expand((t) => t.plays.map((p) => p.card)),
         ...playedSoFar,
       ];
-      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound);
+      final myTeam = i == 0 || i == 1 ? 0 : 1;
+      final partnerIsWinning = playedSoFar.isNotEmpty && (() {
+        final currentBest = determineTrickWinner(playedSoFar, trumpSuit);
+        final bestPlay = currentTrickPlays.firstWhere((p) => p.card == currentBest);
+        final bestIndex = playerNames.indexOf(bestPlay.playerName);
+        final bestTeam = bestIndex == 0 || bestIndex == 1 ? 0 : 1;
+        return bestTeam == myTeam;
+      })();
+      final partnerIndex = i == 0 ? 1 : (i == 1 ? 0 : (i == 2 ? 3 : 2));
+      final signals = _analyzePartnerSignals(partnerIndex);
+      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound, partnerIsWinning, signals['excluded'] as Set<String>, signals['requested'] as String?);
       currentTrickPlays.add(PlayedCard(card: chosen, playerName: playerNames[i], handBeforePlay: botHandBefore, trickBeforePlay: List.from(playedSoFar)));
       allHands[i] = allHands[i].where((c) => c != chosen).toList();
       trick.add(chosen);
@@ -250,6 +293,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       isSuccess = false;
       isQuensChosen = false;
       hasPassedBid = [false, false, false, false];
+      declarerIndex = null;
       bidLabel = null;
       trick = [];
       currentTrickPlays = [];
