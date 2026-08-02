@@ -27,6 +27,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   bool matchWon = false;
   bool matchLost = false;
   bool isQuensChosen = false;
+  List<bool> hasPassedBid = [false, false, false, false];
   String? bidLabel;
   String statusText = 'دورك: اختر نوع اللعب';
   List<HandCard> trick = [];
@@ -60,23 +61,68 @@ class _GameTableScreenState extends State<GameTableScreen> {
 
   void handleDecision(String code) {
     setState(() {
-      if (code == 'BASS') {
+      if (code == 'QUENS') {
+        isQuensChosen = true;
+        bidLabel = 'Quens x2';
+        statusText = 'دور اللعب: Quens x2';
+      } else if (code == 'BASS') {
+        hasPassedBid[0] = true;
         statusText = 'تم التمرير';
       } else {
-        final bid = code == 'QUENS' ? {'label': 'Quens ×2'} : bidLadder.firstWhere((b) => b['code'] == code);
-        if (code != 'QUENS') {
-          currentLevel = bidLadder.firstWhere((b) => b['code'] == code)['level'] as int;
-          isFirstBidder = false;
-          quensAvailable = true;
-          trumpSuit = codeToSuit[code];
-        } else {
-          isQuensChosen = true;
-        }
-        bidLabel = bid['label'] as String;
-        statusText = 'الحاكم: ${bid['label']} - دورك للعب';
+        _applyBid(0, code);
+      }
+      isFirstBidder = false;
+      _runBotBidding();
+      final activePlayers = List.generate(4, (i) => i).where((i) => !hasPassedBid[i]).toList();
+      if (activePlayers.length <= 1 || currentLevel >= 7) {
         showAuction = false;
       }
     });
+  }
+
+  void _applyBid(int playerIndex, String code) {
+    final bid = bidLadder.firstWhere((b) => b['code'] == code);
+    currentLevel = bid['level'] as int;
+    quensAvailable = true;
+    trumpSuit = codeToSuit[code];
+    bidLabel = bid['label'] as String;
+    statusText = playerIndex == 0
+        ? 'دور اللعب: ${bid['label']}'
+        : '${playerNames[playerIndex]} زايد: ${bid['label']}';
+  }
+
+  void _runBotBidding() {
+    for (int i = 1; i <= 3; i++) {
+      if (hasPassedBid[i]) continue;
+      final activeCount = List.generate(4, (j) => j).where((j) => !hasPassedBid[j]).length;
+      if (activeCount <= 1 || currentLevel >= 7) break;
+      final hand = allHands[i];
+      final scores = <String, int>{};
+      for (final entry in codeToSuit.entries) {
+        final suit = entry.value;
+        final cardsInSuit = hand.where((c) => c.suitSymbol == suit).toList();
+        final points = cardsInSuit.fold<int>(0, (sum, c) => sum + cardPoints(c, suit));
+        scores[entry.key] = cardsInSuit.length * 15 + points;
+      }
+      final bestSuitCode = scores.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      final bestSuitLevel = bidLadder.firstWhere((b) => b['code'] == bestSuitCode)['level'] as int;
+      final sunPointsTotal = hand.fold<int>(0, (sum, c) => sum + cardPoints(c, null));
+
+      String? chosenCode;
+      if (scores[bestSuitCode]! >= 70 && bestSuitLevel > currentLevel) {
+        chosenCode = bestSuitCode;
+      } else if (sunPointsTotal >= 25 && 6 > currentLevel) {
+        chosenCode = 'SUN';
+      } else if (scores[bestSuitCode]! >= 55 && bestSuitLevel > currentLevel) {
+        chosenCode = bestSuitCode;
+      }
+
+      if (chosenCode != null) {
+        _applyBid(i, chosenCode);
+      } else {
+        hasPassedBid[i] = true;
+      }
+    }
   }
 
   void playCard(HandCard card) {
@@ -172,6 +218,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
       isCapot = false;
       isSuccess = false;
       isQuensChosen = false;
+      hasPassedBid = [false, false, false, false];
       bidLabel = null;
       trick = [];
       currentTrickPlays = [];
