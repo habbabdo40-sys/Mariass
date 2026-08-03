@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/lobby_screen.dart';
 
 void main() async {
+  ErrorWidget.builder = (details) => Material(child: Center(child: Padding(padding: const EdgeInsets.all(16), child: Text(details.exceptionAsString(), style: const TextStyle(color: Colors.red)))));
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MariassApp());
   try {
