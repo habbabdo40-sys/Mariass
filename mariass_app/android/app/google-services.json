@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "475149156453",
+    "project_id": "mariass-85c46",
+    "storage_bucket": "mariass-85c46.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475149156453:android:456804a752db37ff0d868c",
+        "android_client_info": {
+          "package_name": "com.mariass.mariass_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdZZecjimzu6tFKtvx7OE3Jd6M1GH9hXI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
