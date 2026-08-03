@@ -1,16 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'screens/lobby_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  ErrorWidget.builder = (details) => Material(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(details.exceptionAsString(), style: const TextStyle(color: Colors.red)),
+          ),
+        ),
+      );
   runApp(const MariassApp());
+  try {
+    await Firebase.initializeApp();
+    if (FirebaseAuth.instance.currentUser == null) {
+      await FirebaseAuth.instance.signInAnonymously();
+    }
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
 }
 
 class MariassApp extends StatelessWidget {
   const MariassApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(body: Center(child: Text('Hello Mariass', style: TextStyle(fontSize: 30)))),
-    );
+    return MaterialApp(title: 'Mariass', debugShowCheckedModeBanner: false, home: const LobbyScreen());
   }
 }
