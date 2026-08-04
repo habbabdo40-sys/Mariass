@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../widgets/playing_card_widget.dart';
 import '../widgets/player_hand_fan.dart';
 import '../widgets/opponent_seat.dart';
@@ -11,7 +13,10 @@ import '../game_engine/deck.dart';
 import '../game_engine/trick_record.dart';
 
 class GameTableScreen extends StatefulWidget {
-  const GameTableScreen({super.key});
+  final String? roomCode;
+  final int myIndex;
+  final List<String>? playerUids;
+  const GameTableScreen({super.key, this.roomCode, this.myIndex = 0, this.playerUids});
   @override
   State<GameTableScreen> createState() => _GameTableScreenState();
 }
@@ -56,9 +61,48 @@ class _GameTableScreenState extends State<GameTableScreen> {
     _dealNewHands();
   }
 
+  final _db = FirebaseDatabase.instance.ref();
+  StreamSubscription<DatabaseEvent>? _handsSub;
+
   void _dealNewHands() {
-    allHands = dealFourHands();
-    hand = List.from(allHands[0]);
+    if (widget.roomCode == null) {
+      allHands = dealFourHands();
+      hand = List.from(allHands[0]);
+      return;
+    }
+    _handsSub?.cancel();
+    final gameRef = _db.child('rooms/${widget.roomCode}/game/hands');
+    if (widget.myIndex == 0) {
+      final newHands = dealFourHands();
+      final serialized = {
+        for (int i = 0; i < 4; i++)
+          'p$i': newHands[i].map((c) => '${c.rank}|${c.suitSymbol}|${c.isRed}').toList()
+      };
+      gameRef.set(serialized);
+    }
+    _handsSub = gameRef.onValue.listen((event) {
+      if (!event.snapshot.exists) return;
+      final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+      final loaded = List<List<HandCard>>.generate(4, (i) {
+        final list = List<dynamic>.from(data['p$i'] as List);
+        return list.map((raw) {
+          final parts = (raw as String).split('|');
+          return HandCard(parts[0], parts[1], isRed: parts[2] == 'true');
+        }).toList();
+      });
+      final rotated = List<List<HandCard>>.generate(4, (i) => loaded[(widget.myIndex + i) % 4]);
+      setState(() {
+        allHands = rotated;
+        hand = List.from(allHands[0]);
+      });
+      _handsSub?.cancel();
+    });
+  }
+
+  @override
+  void dispose() {
+    _handsSub?.cancel();
+    super.dispose();
   }
 
   void handleDecision(String code) {

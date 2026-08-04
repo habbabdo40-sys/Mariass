@@ -40,7 +40,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
     }
     final code = _generateCode();
     await _db.child('rooms/$code').set({
-      'players': {uid: name},
+      'players': {uid: {'name': name, 'joinedAt': ServerValue.timestamp}},
+      'host': uid,
       'createdAt': ServerValue.timestamp,
       'status': 'waiting',
     });
@@ -71,7 +72,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
       setState(() { _loading = false; _error = 'الغرفة ممتلئة'; });
       return;
     }
-    await _db.child('rooms/$code/players/$uid').set(name);
+    await _db.child('rooms/$code/players/$uid').set({'name': name, 'joinedAt': ServerValue.timestamp});
     _listenToRoom(code);
   }
 
@@ -80,11 +81,25 @@ class _LobbyScreenState extends State<LobbyScreen> {
     _roomSub = _db.child('rooms/$code/players').onValue.listen((event) {
       if (!event.snapshot.exists) return;
       final data = Map<String, dynamic>.from(event.snapshot.value as Map);
-      setState(() => _players = data.values.map((v) => v.toString()).toList());
-      if (_players.length == 4) {
+      setState(() => _players = data.entries
+          .map((e) => (Map<String, dynamic>.from(e.value as Map))['name'].toString())
+          .toList());
+      if (data.length == 4) {
         _roomSub?.cancel();
+        final sortedUids = data.keys.toList()
+          ..sort((a, b) {
+            final ta = (Map<String, dynamic>.from(data[a] as Map)['joinedAt'] ?? 0) as int;
+            final tb = (Map<String, dynamic>.from(data[b] as Map)['joinedAt'] ?? 0) as int;
+            return ta.compareTo(tb);
+          });
+        final myUid = FirebaseAuth.instance.currentUser!.uid;
+        final myIndex = sortedUids.indexOf(myUid);
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const GameTableScreen()),
+          MaterialPageRoute(builder: (_) => GameTableScreen(
+            roomCode: code,
+            myIndex: myIndex,
+            playerUids: sortedUids,
+          )),
         );
       }
     });
