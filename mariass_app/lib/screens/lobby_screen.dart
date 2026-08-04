@@ -20,6 +20,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
   List<String> _players = [];
   bool _loading = false;
   String? _error;
+  String? _hostUid;
+  bool get _isHost => _hostUid != null && _hostUid == FirebaseAuth.instance.currentUser?.uid;
 
   String _generateCode() {
     final rand = Random();
@@ -78,6 +80,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   void _listenToRoom(String code) {
     setState(() { _roomCode = code; _loading = false; });
+    _db.child('rooms/$code/host').get().then((snap) {
+      if (snap.exists && mounted) setState(() => _hostUid = snap.value.toString());
+    });
     _roomSub = _db.child('rooms/$code/players').onValue.listen((event) {
       if (!event.snapshot.exists) return;
       final data = Map<String, dynamic>.from(event.snapshot.value as Map);
@@ -103,6 +108,27 @@ class _LobbyScreenState extends State<LobbyScreen> {
         );
       }
     });
+  }
+
+  Future<void> _startWithBots() async {
+    final code = _roomCode;
+    if (code == null) return;
+    final snapshot = await _db.child('rooms/$code/players').get();
+    if (!snapshot.exists) return;
+    final data = Map<String, dynamic>.from(snapshot.value as Map);
+    final missing = 4 - data.length;
+    if (missing <= 0) return;
+    final updates = <String, dynamic>{};
+    final base = DateTime.now().millisecondsSinceEpoch;
+    for (int i = 0; i < missing; i++) {
+      final botId = 'bot_${base}_$i';
+      updates['rooms/$code/players/$botId'] = {
+        'name': 'بوت ${i + 1}',
+        'joinedAt': base + i,
+        'isBot': true,
+      };
+    }
+    await _db.update(updates);
   }
 
   @override
@@ -163,6 +189,13 @@ class _LobbyScreenState extends State<LobbyScreen> {
         const SizedBox(height: 12),
         ..._players.map((p) => ListTile(leading: const Icon(Icons.person), title: Text(p))),
         const SizedBox(height: 24),
+        if (_isHost && _players.isNotEmpty && _players.length < 4) ...[
+          ElevatedButton(
+            onPressed: _startWithBots,
+            child: Text('ابدأ اللعب مع ${4 - _players.length} بوت'),
+          ),
+          const SizedBox(height: 12),
+        ],
         const CircularProgressIndicator(),
         const SizedBox(height: 12),
         const Text('في انتظار انضمام باقي اللاعبين...'),
