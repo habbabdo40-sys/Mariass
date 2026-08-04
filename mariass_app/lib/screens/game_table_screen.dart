@@ -63,6 +63,17 @@ class _GameTableScreenState extends State<GameTableScreen> {
 
   final _db = FirebaseDatabase.instance.ref();
   StreamSubscription<DatabaseEvent>? _handsSub;
+  StreamSubscription<DatabaseEvent>? _bidSub;
+  int _bidTurnGlobal = 0;
+
+  bool _isBotSeat(int g) {
+    final uids = widget.playerUids;
+    if (uids == null || g < 0 || g >= uids.length) return false;
+    return uids[g].startsWith('bot_');
+  }
+
+  int _localFromGlobal(int g) => (g - widget.myIndex + 4) % 4;
+  int _globalFromLocal(int l) => (widget.myIndex + l) % 4;
 
   void _dealNewHands() {
     if (widget.roomCode == null) {
@@ -96,16 +107,140 @@ class _GameTableScreenState extends State<GameTableScreen> {
         hand = List.from(allHands[0]);
       });
       _handsSub?.cancel();
+      _startBidSync();
     });
   }
 
   @override
   void dispose() {
     _handsSub?.cancel();
+    _bidSub?.cancel();
     super.dispose();
   }
 
+  void _startBidSync() {
+    if (widget.roomCode == null) return;
+    _bidSub?.cancel();
+    final bidRef = _db.child('rooms/${widget.roomCode}/game/bid');
+    if (widget.myIndex == 0) {
+      bidRef.set({
+        'turn': 0,
+        'level': 0,
+        'quensAvailable': false,
+        'trumpSuit': null,
+        'declarer': null,
+        'bidLabel': null,
+        'hasPassed': [false, false, false, false],
+        'isFirstBidder': true,
+        'showAuction': true,
+        'statusText': 'دور المزايدة الأول',
+      });
+    }
+    _bidSub = bidRef.onValue.listen((event) {
+      if (!event.snapshot.exists) return;
+      final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+      final hasPassedGlobal = List<dynamic>.from(data['hasPassed'] as List).map((e) => e == true).toList();
+      final turnGlobal = data['turn'] as int? ?? 0;
+      final auctionOn = data['showAuction'] as bool? ?? true;
+      final declarerGlobal = data['declarer'] as int?;
+      setState(() {
+        currentLevel = data['level'] as int? ?? 0;
+        quensAvailable = data['quensAvailable'] as bool? ?? false;
+        trumpSuit = data['trumpSuit'] as String?;
+        bidLabel = data['bidLabel'] as String?;
+        declarerIndex = declarerGlobal == null ? null : _localFromGlobal(declarerGlobal);
+        isFirstBidder = data['isFirstBidder'] as bool? ?? false;
+        showAuction = auctionOn;
+        statusText = data['statusText'] as String? ?? statusText;
+        hasPassedBid = List.generate(4, (l) => hasPassedGlobal[_globalFromLocal(l)]);
+        _bidTurnGlobal = turnGlobal;
+      });
+      if (!auctionOn) return;
+      if (widget.myIndex == 0 && _isBotSeat(turnGlobal)) {
+        _hostDecideBotBid(turnGlobal, data);
+      }
+    });
+  }
+
+  void _hostDecideBotBid(int seat, Map<String, dynamic> data) {
+    final level = data['level'] as int? ?? 0;
+    final hand = allHands[seat];
+    final scores = <String, int>{};
+    for (final entry in codeToSuit.entries) {
+      final suit = entry.value;
+      final cardsInSuit = hand.where((c) => c.suitSymbol == suit).toList();
+      final points = cardsInSuit.fold<int>(0, (sum, c) => sum + cardPoints(c, suit));
+      scores[entry.key] = cardsInSuit.length * 15 + points;
+    }
+    final bestSuitCode = scores.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    final bestSuitLevel = bidLadder.firstWhere((b) => b['code'] == bestSuitCode)['level'] as int;
+    final sunPointsTotal = hand.fold<int>(0, (sum, c) => sum + cardPoints(c, null));
+    String? chosenCode;
+    if (scores[bestSuitCode]! >= 70 && bestSuitLevel > level) {
+      chosenCode = bestSuitCode;
+    } else if (sunPointsTotal >= 25 && 6 > level) {
+      chosenCode = 'SUN';
+    } else if (scores[bestSuitCode]! >= 55 && bestSuitLevel > level) {
+      chosenCode = bestSuitCode;
+    }
+    _applyOrPassBidRemote(seat, chosenCode ?? 'BASS');
+  }
+
+  void _submitMyBid(String code) {
+    _applyOrPassBidRemote(widget.myIndex, code);
+  }
+
+  Future<void> _applyOrPassBidRemote(int seat, String code) async {
+    final bidRef = _db.child('rooms/${widget.roomCode}/game/bid');
+    final snap = await bidRef.get();
+    if (!snap.exists) return;
+    final data = Map<String, dynamic>.from(snap.value as Map);
+    final hasPassed = List<dynamic>.from(data['hasPassed'] as List).map((e) => e == true).toList();
+    int level = data['level'] as int? ?? 0;
+    bool quens = data['quensAvailable'] as bool? ?? false;
+    String? suit = data['trumpSuit'] as String?;
+    int? declarer = data['declarer'] as int?;
+    String? label = data['bidLabel'] as String?;
+    String newStatus;
+
+    if (code == 'QUENS') {
+      quens = true;
+      newStatus = '${playerNames[_localFromGlobal(seat)]}: اختار كوينز';
+    } else if (code == 'BASS') {
+      hasPassed[seat] = true;
+      newStatus = '${playerNames[_localFromGlobal(seat)]}: مرر';
+    } else {
+      final bid = bidLadder.firstWhere((b) => b['code'] == code);
+      level = bid['level'] as int;
+      suit = codeToSuit[code];
+      declarer = seat;
+      label = bid['label'] as String;
+      newStatus = '${playerNames[_localFromGlobal(seat)]}: ${bid['label']}';
+    }
+
+    final nextTurn = (seat + 1) % 4;
+    final remainingActive = List.generate(4, (i) => i).where((i) => i > seat && !hasPassed[i]).toList();
+    final stop = seat == 3 || level >= 7 || remainingActive.isEmpty;
+
+    await bidRef.update({
+      'hasPassed': hasPassed,
+      'level': level,
+      'quensAvailable': quens,
+      'trumpSuit': suit,
+      'declarer': declarer,
+      'bidLabel': label,
+      'isFirstBidder': false,
+      'turn': stop ? seat : nextTurn,
+      'showAuction': !stop,
+      'statusText': newStatus,
+    });
+  }
+
   void handleDecision(String code) {
+    if (widget.roomCode != null) {
+      _submitMyBid(code);
+      return;
+    }
     setState(() {
       if (code == 'QUENS') {
         isQuensChosen = true;
@@ -409,7 +544,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
                 ),
                 Center(child: PlayerHandFan(cards: hand, onCardTap: playCard)),
                 const SizedBox(height: 10),
-                if (showAuction) AuctionPanel(isFirstBidder: isFirstBidder, currentHighestLevel: currentLevel, isQuensAvailable: quensAvailable, onDecision: handleDecision),
+                if (showAuction) IgnorePointer(ignoring: widget.roomCode != null && _bidTurnGlobal != widget.myIndex, child: Opacity(opacity: (widget.roomCode != null && _bidTurnGlobal != widget.myIndex) ? 0.4 : 1.0, child: AuctionPanel(isFirstBidder: isFirstBidder, currentHighestLevel: currentLevel, isQuensAvailable: quensAvailable, onDecision: handleDecision))),
               ]),
               if (!showAuction && !roundOver && (completedTricks.isNotEmpty || currentTrickPlays.isNotEmpty))
                 Positioned(bottom: 170, right: 16, child: FloatingActionButton.extended(backgroundColor: Colors.red.shade700, onPressed: openAmjiPicker, icon: const Icon(Icons.flag), label: const Text('Amji'))),
