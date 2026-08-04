@@ -65,7 +65,9 @@ class _GameTableScreenState extends State<GameTableScreen> {
   StreamSubscription<DatabaseEvent>? _handsSub;
   StreamSubscription<DatabaseEvent>? _bidSub;
   int _bidTurnGlobal = 0;
-
+StreamSubscription<DatabaseEvent>? _trickSub;
+List<String> _trickPlaysRaw = [];
+bool _trickStarted = false;
   bool _isBotSeat(int g) {
     final uids = widget.playerUids;
     if (uids == null || g < 0 || g >= uids.length) return false;
@@ -112,10 +114,12 @@ class _GameTableScreenState extends State<GameTableScreen> {
   }
 
   @override
-  void dispose() {
-    _handsSub?.cancel();
-    _bidSub?.cancel();
-    super.dispose();
+ void dispose() {
+        _handsSub?.cancel();
+            _bidSub?.cancel();
+                _trickSub?.cancel();
+                    super.dispose();
+                      }
   }
 
   void _startBidSync() {
@@ -155,12 +159,19 @@ class _GameTableScreenState extends State<GameTableScreen> {
         hasPassedBid = List.generate(4, (l) => hasPassedGlobal[_globalFromLocal(l)]);
         _bidTurnGlobal = turnGlobal;
       });
-      if (!auctionOn) return;
-      if (widget.myIndex == 0 && _isBotSeat(turnGlobal)) {
-        _hostDecideBotBid(turnGlobal, data);
+      if (!auctionOn) {
+                if (!_trickStarted) {
+                          _trickStarted = true;
+                                    _startTrickSync();
+                                            }
+                                                    return;
+                                                          }
+                                                                if (widget.myIndex == 0 && _isBotSeat(turnGlobal)) {
+                                                                        _hostDecideBotBid(turnGlobal, data);
+                                                                              }
+                                                                                  });
+                                                                                    }
       }
-    });
-  }
 
   void _hostDecideBotBid(int seat, Map<String, dynamic> data) {
     final level = data['level'] as int? ?? 0;
@@ -186,6 +197,112 @@ class _GameTableScreenState extends State<GameTableScreen> {
     _applyOrPassBidRemote(seat, chosenCode ?? 'BASS');
   }
 
+void _startTrickSync() {
+      if (widget.roomCode == null) return;
+          _trickSub?.cancel();
+              final trickRef = _db.child('rooms/${widget.roomCode}/game/trick');
+                  if (widget.myIndex == 0) {
+                        trickRef.set({'plays': <String>[], 'leader': 0, 'turn': 0});
+                            }
+                                _trickSub = trickRef.onValue.listen((event) {
+                                      if (!event.snapshot.exists) return;
+                                            final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+                                                  final playsRaw = List<dynamic>.from(data['plays'] as List? ?? []);
+                                                        final leaderGlobal = data['leader'] as int? ?? 0;
+                                                              final turnGlobal = data['turn'] as int? ?? leaderGlobal;
+                                                                    _trickPlaysRaw = playsRaw.cast<String>();
+
+                                                                          setState(() {
+                                                                                  leaderIndex = _localFromGlobal(leaderGlobal);
+                                                                                          final newPlays = <PlayedCard>[];
+                                                                                                  for (final raw in _trickPlaysRaw) {
+                                                                                                            final parts = raw.split('|');
+                                                                                                                      final seatGlobal = int.parse(parts[0]);
+                                                                                                                                final card = HandCard(parts[1], parts[2], isRed: parts[3] == 'true');
+                                                                                                                                          final seatLocal = _localFromGlobal(seatGlobal);
+                                                                                                                                                    final handBefore = List<HandCard>.from(allHands[seatLocal]);
+                                                                                                                                                              final trickBefore = newPlays.map((p) => p.card).toList();
+                                                                                                                                                                        allHands[seatLocal] = allHands[seatLocal].where((c) => c != card).toList();
+                                                                                                                                                                                  if (seatLocal == 0) hand = List.from(allHands[0]);
+                                                                                                                                                                                            newPlays.add(PlayedCard(card: card, playerName: playerNames[seatLocal], handBeforePlay: handBefore, trickBeforePlay: trickBefore));
+                                                                                                                                                                                                    }
+                                                                                                                                                                                                            currentTrickPlays = newPlays;
+                                                                                                                                                                                                                    trick = newPlays.map((p) => p.card).toList();
+                                                                                                                                                                                                                          });
+
+                                                                                                                                                                                                                                if (currentTrickPlays.length >= 4) {
+                                                                                                                                                                                                                                        _processCompletedTrickAndAdvance(trickRef);
+                                                                                                                                                                                                                                                return;
+                                                                                                                                                                                                                                                      }
+                                                                                                                                                                                                                                                            if (widget.myIndex == 0 && _isBotSeat(turnGlobal)) {
+                                                                                                                                                                                                                                                                    _hostPlayBotCard(turnGlobal, trickRef);
+                                                                                                                                                                                                                                                                          }
+                                                                                                                                                                                                                                                                              });
+                                                                                                                                                                                                                                                                                }
+
+                                                                                                                                                                                                                                                                                  void _processCompletedTrickAndAdvance(DatabaseReference trickRef) {
+                                                                                                                                                                                                                                                                                      final points = trickPoints(trick, trumpSuit);
+                                                                                                                                                                                                                                                                                          final winner = determineTrickWinner(trick, trumpSuit);
+                                                                                                                                                                                                                                                                                              final winnerPlay = currentTrickPlays.firstWhere((p) => p.card == winner);
+                                                                                                                                                                                                                                                                                                  final winnerIndexLocal = playerNames.indexOf(winnerPlay.playerName);
+                                                                                                                                                                                                                                                                                                      final iWon = winnerIndexLocal == 0 || winnerIndexLocal == 1;
+                                                                                                                                                                                                                                                                                                          setState(() {
+                                                                                                                                                                                                                                                                                                                if (iWon) {
+                                                                                                                                                                                                                                                                                                                        myPoints += points;
+                                                                                                                                                                                                                                                                                                                                myTricksWon += 1;
+                                                                                                                                                                                                                                                                                                                                      }
+                                                                                                                                                                                                                                                                                                                                            completedTricks.add(TrickRecord(List.from(currentTrickPlays)));
+                                                                                                                                                                                                                                                                                                                                                  currentTrickPlays = [];
+                                                                                                                                                                                                                                                                                                                                                        tricksPlayed += 1;
+                                                                                                                                                                                                                                                                                                                                                              trick = [];
+                                                                                                                                                                                                                                                                                                                                                                    amjiResult = null;
+                                                                                                                                                                                                                                                                                                                                                                          leaderIndex = winnerIndexLocal;
+                                                                                                                                                                                                                                                                                                                                                                                statusText = 'ربح ${winner.rank}${winner.suitSymbol} (+$points نقطة)';
+                                                                                                                                                                                                                                                                                                                                                                                    });
+
+                                                                                                                                                                                                                                                                                                                                                                                        if (widget.myIndex != 0) return;
+                                                                                                                                                                                                                                                                                                                                                                                            if (hand.isEmpty) return; // نهاية الجولة: نسويها بمرحلة قادمة
+                                                                                                                                                                                                                                                                                                                                                                                                final winnerGlobal = _globalFromLocal(winnerIndexLocal);
+                                                                                                                                                                                                                                                                                                                                                                                                    trickRef.set({'plays': <String>[], 'leader': winnerGlobal, 'turn': winnerGlobal});
+                                                                                                                                                                                                                                                                                                                                                                                                      }
+
+                                                                                                                                                                                                                                                                                                                                                                                                        void _hostPlayBotCard(int seatGlobal, DatabaseReference trickRef) {
+                                                                                                                                                                                                                                                                                                                                                                                                            final seatLocal = _localFromGlobal(seatGlobal);
+                                                                                                                                                                                                                                                                                                                                                                                                                final botHandBefore = List<HandCard>.from(allHands[seatLocal]);
+                                                                                                                                                                                                                                                                                                                                                                                                                    final playedSoFar = currentTrickPlays.map((p) => p.card).toList();
+                                                                                                                                                                                                                                                                                                                                                                                                                        final allPlayedThisRound = [
+                                                                                                                                                                                                                                                                                                                                                                                                                              ...completedTricks.expand((t) => t.plays.map((p) => p.card)),
+                                                                                                                                                                                                                                                                                                                                                                                                                                    ...playedSoFar,
+                                                                                                                                                                                                                                                                                                                                                                                                                                        ];
+                                                                                                                                                                                                                                                                                                                                                                                                                                            final myTeam = seatLocal == 0 || seatLocal == 1 ? 0 : 1;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                final partnerIsWinning = playedSoFar.isNotEmpty && (() {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                      final currentBest = determineTrickWinner(playedSoFar, trumpSuit);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                            final bestPlay = currentTrickPlays.firstWhere((p) => p.card == currentBest);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                  final bestIndex = playerNames.indexOf(bestPlay.playerName);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                        final bestTeam = bestIndex == 0 || bestIndex == 1 ? 0 : 1;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                              return bestTeam == myTeam;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  })();
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      final partnerIndex = seatLocal == 0 ? 1 : (seatLocal == 1 ? 0 : (seatLocal == 2 ? 3 : 2));
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          final signals = _analyzePartnerSignals(partnerIndex);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              final declarerTeam = declarerIndex == null ? null : (declarerIndex == 0 || declarerIndex == 1 ? 0 : 1);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  final isDeclarerTeam = declarerTeam == myTeam;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      final chosen = chooseBotCard(botHandBefore, playedSoFar, trumpSuit, allPlayedThisRound,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              partnerIsWinning, signals['excluded'] as Set<String>, signals['requested'] as String?, isDeclarerTeam);
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  final newPlays = List<String>.from(_trickPlaysRaw)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ..add('$seatGlobal|${chosen.rank}|${chosen.suitSymbol}|${chosen.isRed}');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            trickRef.update({'plays': newPlays, 'turn': (seatGlobal + 1) % 4});
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                void _submitMyCard(HandCard card) {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    if (widget.roomCode == null) return;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        final trickRef = _db.child('rooms/${widget.roomCode}/game/trick');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            final seatGlobal = widget.myIndex;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                final newPlays = List<String>.from(_trickPlaysRaw)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ..add('$seatGlobal|${card.rank}|${card.suitSymbol}|${card.isRed}');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          trickRef.update({'plays': newPlays, 'turn': (seatGlobal + 1) % 4});
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }
+}
   void _submitMyBid(String code) {
     _applyOrPassBidRemote(widget.myIndex, code);
   }
@@ -329,7 +446,21 @@ class _GameTableScreenState extends State<GameTableScreen> {
   }
 
   void playCard(HandCard card) {
-    if (showAuction || currentTrickPlays.length >= 4) return;
+   if (widget.roomCode != null) {
+          if (showAuction || currentTrickPlays.length >= 4) return;
+                final order = List.generate(4, (i) => (leaderIndex + i) % 4);
+                      final humanTurnIndex = order.indexOf(0);
+                            if (currentTrickPlays.length != humanTurnIndex) return;
+                                  final currentTrick = currentTrickPlays.map((p) => p.card).toList();
+                                        if (!isCardLegal(card, hand, currentTrick, trumpSuit)) {
+                                                final hasTrump = trumpSuit != null && hand.any((c) => c.suitSymbol == trumpSuit);
+                                                        setState(() => statusText = hasTrump ? 'يجب لعب الحكم أو تعليته إن أمكن' : 'يجب مجاراة اللون المفتوح');
+                                                                return;
+                                                                      }
+                                                                            _submitMyCard(card);
+                                                                                  return;
+                                                                                      }
+   } if (showAuction || currentTrickPlays.length >= 4) return;
     final order = List.generate(4, (i) => (leaderIndex + i) % 4);
     final humanTurnIndex = order.indexOf(0);
     if (currentTrickPlays.length != humanTurnIndex) return;
