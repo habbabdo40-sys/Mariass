@@ -114,14 +114,12 @@ bool _trickStarted = false;
   }
 
   @override
- void dispose() {
-        _handsSub?.cancel();
-            _bidSub?.cancel();
-                _trickSub?.cancel();
-                    super.dispose();
-                      }
+  void dispose() {
+    _handsSub?.cancel();
+    _bidSub?.cancel();
+    _trickSub?.cancel();
+    super.dispose();
   }
-
   void _startBidSync() {
     if (widget.roomCode == null) return;
     _bidSub?.cancel();
@@ -682,3 +680,4 @@ void _startTrickSync() {
       ),
     );
   }
+}
