@@ -171,7 +171,6 @@ bool _trickStarted = false;
                                                                               }
                                                                                   });
                                                                                     }
-      }
 
   void _hostDecideBotBid(int seat, Map<String, dynamic> data) {
     final level = data['level'] as int? ?? 0;
@@ -302,7 +301,6 @@ void _startTrickSync() {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ..add('$seatGlobal|${card.rank}|${card.suitSymbol}|${card.isRed}');
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           trickRef.update({'plays': newPlays, 'turn': (seatGlobal + 1) % 4});
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             }
-}
   void _submitMyBid(String code) {
     _applyOrPassBidRemote(widget.myIndex, code);
   }
@@ -507,7 +505,6 @@ void _startTrickSync() {
       final points = trickPoints(trick, trumpSuit);
       statusText = 'ربح ${winner.rank}${winner.suitSymbol} (+$points نقطة)';
     });
-  }
 
   void openAmjiPicker() {
     showDialog(
@@ -685,4 +682,3 @@ void _startTrickSync() {
       ),
     );
   }
-}
