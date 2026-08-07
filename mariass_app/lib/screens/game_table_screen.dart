@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/playing_card_widget.dart';
 import '../widgets/player_hand_fan.dart';
 import '../widgets/opponent_seat.dart';
@@ -59,6 +60,7 @@ class _GameTableScreenState extends State<GameTableScreen> {
   void initState() {
     super.initState();
     _dealNewHands();
+    _startPresenceSync();
   }
 
   final _db = FirebaseDatabase.instance.ref();
@@ -68,11 +70,44 @@ class _GameTableScreenState extends State<GameTableScreen> {
   StreamSubscription<DatabaseEvent>? _trickSub;
   List<String> _trickPlaysRaw = [];
   bool _trickStarted = false;
+  StreamSubscription<DatabaseEvent>? _presenceSub;
+  StreamSubscription<DatabaseEvent>? _connectionSub;
+  Map<String, bool> _onlineStatus = {};
 
   bool _isBotSeat(int g) {
     final uids = widget.playerUids;
     if (uids == null || g < 0 || g >= uids.length) return false;
-    return uids[g].startsWith('bot_');
+    final uid = uids[g];
+    if (uid.startsWith('bot_')) return true;
+    if (_onlineStatus[uid] == false) return true;
+    return false;
+  }
+
+  void _startPresenceSync() {
+    if (widget.roomCode == null) return;
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid != null) {
+      final myPlayerRef = _db.child('rooms/${widget.roomCode}/players/$myUid');
+      _connectionSub = _db.child('.info/connected').onValue.listen((event) {
+        final connected = event.snapshot.value as bool? ?? false;
+        if (connected) {
+          myPlayerRef.child('online').onDisconnect().set(false);
+          myPlayerRef.update({'online': true});
+        }
+      });
+    }
+    _presenceSub = _db.child('rooms/${widget.roomCode}/players').onValue.listen((event) {
+      if (!event.snapshot.exists) return;
+      final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+      final updated = <String, bool>{};
+      data.forEach((uid, val) {
+        final playerData = Map<String, dynamic>.from(val as Map);
+        updated[uid] = playerData['online'] as bool? ?? true;
+      });
+      setState(() {
+        _onlineStatus = updated;
+      });
+    });
   }
 
   int _localFromGlobal(int g) => (g - widget.myIndex + 4) % 4;
@@ -119,6 +154,8 @@ class _GameTableScreenState extends State<GameTableScreen> {
     _handsSub?.cancel();
     _bidSub?.cancel();
     _trickSub?.cancel();
+    _presenceSub?.cancel();
+    _connectionSub?.cancel();
     super.dispose();
   }
 
