@@ -71,9 +71,9 @@ class _GameTableScreenState extends State<GameTableScreen> {
   List<String> _trickPlaysRaw = [];
   bool _trickStarted = false;
   StreamSubscription<DatabaseEvent>? _presenceSub;
-  StreamSubscription<DatabaseEvent>? _connectionSub;
-  Map<String, bool> _onlineStatus = {};
-
+    StreamSubscription<DatabaseEvent>? _connectionSub;
+      Map<String, bool> _onlineStatus = {};
+        Timer? _turnTimeoutTimer;
   bool _isBotSeat(int g) {
     final uids = widget.playerUids;
     if (uids == null || g < 0 || g >= uids.length) return false;
@@ -155,9 +155,10 @@ class _GameTableScreenState extends State<GameTableScreen> {
     _bidSub?.cancel();
     _trickSub?.cancel();
     _presenceSub?.cancel();
-    _connectionSub?.cancel();
-    super.dispose();
-  }
+        _connectionSub?.cancel();
+            _turnTimeoutTimer?.cancel();
+                super.dispose();
+                }
 
   void _startBidSync() {
     if (widget.roomCode == null) return;
@@ -197,24 +198,33 @@ class _GameTableScreenState extends State<GameTableScreen> {
         _bidTurnGlobal = turnGlobal;
       });
       if (!auctionOn) {
-        if (!_trickStarted) {
-          _trickStarted = true;
-          _startTrickSync();
-        }
-        return;
-      }
-      if (widget.myIndex == 0 && _isBotSeat(turnGlobal)) {
-        _hostDecideBotBid(turnGlobal, data);
-      }
-    });
-  }
+              _turnTimeoutTimer?.cancel();
+                      if (!_trickStarted) {
+                                _trickStarted = true;
+                                          _startTrickSync();
+                                                  }
+                                                          return;
+                                                                }
+                                                                      _turnTimeoutTimer?.cancel();
+                                                                            if (widget.myIndex == 0 && _isBotSeat(turnGlobal)) {
+                                                                                    _hostDecideBotBid(turnGlobal, data);
+                                                                                          } else if (widget.myIndex == 0) {
+                                                                                                  _turnTimeoutTimer = Timer(const Duration(seconds: 30), () => _hostTimeoutBid(turnGlobal));
+                                                                                                        }
+                                                                                                            });
+                                                                                                              }
 
-  void _hostDecideBotBid(int seat, Map<String, dynamic> data) {
-    final level = data['level'] as int? ?? 0;
-    final hand = allHands[seat];
-    final scores = <String, int>{};
-    for (final entry in codeToSuit.entries) {
-      final suit = entry.value;
+                                                                                                                void _hostTimeoutBid(int seat) async {
+                                                                                                                    final bidRef = _db.child('rooms/${widget.roomCode}/game/bid');
+                                                                                                                        final snap = await bidRef.get();
+                                                                                                                            if (!snap.exists) return;
+                                                                                                                                final data = Map<String, dynamic>.from(snap.value as Map);
+                                                                                                                                    final currentTurn = data['turn'] as int? ?? -1;
+                                                                                                                                        if (currentTurn != seat) return;
+                                                                                                                                            _hostDecideBotBid(seat, data);
+                                                                                                                                              }
+
+                                                                                                                                                void _hostDecideBotBid(int seat, Map<String, dynamic> data) {
       final cardsInSuit = hand.where((c) => c.suitSymbol == suit).toList();
       final points = cardsInSuit.fold<int>(0, (sum, c) => sum + cardPoints(c, suit));
       scores[entry.key] = cardsInSuit.length * 15 + points;
@@ -267,16 +277,30 @@ class _GameTableScreenState extends State<GameTableScreen> {
       });
 
       if (currentTrickPlays.length >= 4) {
-        _processCompletedTrickAndAdvance(trickRef);
-        return;
-      }
-      if (widget.myIndex == 0 && _isBotSeat(turnGlobal)) {
-        _hostPlayBotCard(turnGlobal, trickRef);
-      }
-    });
-  }
+              _turnTimeoutTimer?.cancel();
+                      _processCompletedTrickAndAdvance(trickRef);
+                              return;
+                                    }
+                                          _turnTimeoutTimer?.cancel();
+                                                if (widget.myIndex == 0 && _isBotSeat(turnGlobal)) {
+                                                        _hostPlayBotCard(turnGlobal, trickRef);
+                                                              } else if (widget.myIndex == 0) {
+                                                                      _turnTimeoutTimer = Timer(const Duration(seconds: 30), () => _hostTimeoutCard(turnGlobal));
+                                                                            }
+                                                                                });
+                                                                                  }
 
-  void _processCompletedTrickAndAdvance(DatabaseReference trickRef) {
+                                                                                    void _hostTimeoutCard(int seatGlobal) async {
+                                                                                        final trickRef = _db.child('rooms/${widget.roomCode}/game/trick');
+                                                                                            final snap = await trickRef.get();
+                                                                                                if (!snap.exists) return;
+                                                                                                    final data = Map<String, dynamic>.from(snap.value as Map);
+                                                                                                        final currentTurn = data['turn'] as int? ?? -1;
+                                                                                                            if (currentTurn != seatGlobal) return;
+                                                                                                                _hostPlayBotCard(seatGlobal, trickRef);
+                                                                                                                  }
+
+                                                                                                                    void _processCompletedTrickAndAdvance(DatabaseReference trickRef) {
     final points = trickPoints(trick, trumpSuit);
     final winner = determineTrickWinner(trick, trumpSuit);
     final winnerPlay = currentTrickPlays.firstWhere((p) => p.card == winner);
