@@ -740,7 +740,17 @@ class _GameTableScreenState extends State<GameTableScreen> {
                       else if (roundOver)
                         RoundResultCard(isCapot: isCapot, isSuccess: isSuccess, points: myPoints, total: total)
                       else ...[
-                        if (trick.isNotEmpty) Wrap(spacing: 4, children: trick.map((c) => PlayingCardWidget(rank: c.rank, suitSymbol: c.suitSymbol, isRed: c.isRed, width: 42, highlight: trumpSuit != null && c.suitSymbol == trumpSuit)).toList()),
+                        if (trick.isNotEmpty) SizedBox(
+                                                    width: 42 + (trick.length - 1) * 24.0,
+                                                                              height: 42 * 1.42,
+                                                                                                        child: Stack(children: List.generate(trick.length, (i) {
+                                                                                                                                    return Positioned(
+                                                                                                                                                                  left: i * 24.0,
+                                                                                                                                                                                                child: PlayingCardWidget(rank: trick[i].rank, suitSymbol: trick[i].suitSymbol, isRed: trick[i].isRed, width: 42, highlight: trumpSuit != null && trick[i].suitSymbol == trumpSuit),
+                                                                                                                                                                                                                            );
+                                                                                                                                                                                                                                                      })),
+                                                                                                                                                                                                                                                                              ),
+                        )
                         const SizedBox(height: 8),
                         Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
                         if (amjiResult != null) ...[const SizedBox(height: 6), Text(amjiResult!, style: const TextStyle(color: Colors.yellowAccent, fontSize: 12), textAlign: TextAlign.center)],
